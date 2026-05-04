@@ -1,7 +1,7 @@
 import React from "react";
 import { MessageCircle } from "lucide-react";
 
-const WHATSAPP_NUMBER = "919876543210"; // placeholder — replace with real number
+const WHATSAPP_NUMBER = process.env.REACT_APP_WHATSAPP_NUMBER || "919876543210";
 const DEFAULT_MSG = encodeURIComponent(
   "Hi Wanderlust Adventure — I'd love to plan a trip. Could you help?"
 );
@@ -13,7 +13,7 @@ export default function WhatsAppFab() {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-5 right-5 z-50 inline-flex items-center gap-2 rounded-full bg-[#25D366] hover:bg-[#1FAE54] text-white px-4 py-3 shadow-lg shadow-black/10 transition-all hover:-translate-y-0.5"
+      className="fixed bottom-24 right-5 z-50 inline-flex items-center gap-2 rounded-full bg-[#25D366] hover:bg-[#1FAE54] text-white px-4 py-3 shadow-lg shadow-black/10 transition-all hover:-translate-y-0.5"
       data-testid="whatsapp-fab"
       aria-label="Chat on WhatsApp"
     >

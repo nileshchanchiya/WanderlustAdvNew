@@ -25,19 +25,26 @@ Create a fully functional production-ready itinerary app.
 - **Layout:** 12-col asymmetric layouts, generous spacing, label-caps metadata.
 
 ## Implemented (2026-02)
+### v1 — Itinera MVP
 - ✅ Landing page with editorial hero + feature grid + CTA
 - ✅ JWT auth (register / login / logout / me / refresh) with httpOnly cookies
 - ✅ Admin auto-seed on startup, brute-force protection by email
 - ✅ Protected routes + AuthContext
 - ✅ Dashboard with itinerary cards (travel / event / generic), empty state
-- ✅ Create/Edit itinerary modal (title, type, destination, date range, budget limit, currency, emoji cover, description)
+- ✅ Create/Edit itinerary modal
 - ✅ Itinerary detail with 5 tabs: Overview, Timeline, Map, Budget, Packing
-- ✅ Timeline with day grouping, categorised events (activity / food / transport / stay / meeting)
-- ✅ Map tab with markers, connecting polyline
-- ✅ Budget tab with expense CRUD, running total vs. limit, pie chart by category
-- ✅ Packing tab with categorised checklist + progress bar
 - ✅ Export to PDF (full itinerary snapshot)
 - ✅ Logout + toast notifications
+
+### v2 — Wanderlust Adventure rebrand (travel agency)
+- ✅ Visual system pivot: deep navy (#0B2447) primary + soft gold (#C9A96E) accent, Fraunces serif for luxury headlines (kept Satoshi for body)
+- ✅ New public pages: Home, Destinations (with region/theme/budget filters), Services, About, Contact
+- ✅ Contact inquiry form → `POST /api/inquiries` (Pydantic-validated, EmailStr + length caps)
+- ✅ Sticky WhatsApp FAB (env-configurable number, positioned to avoid UI overlap)
+- ✅ Shared Footer with company / account / contact columns + socials
+- ✅ Rebranded Navbar with Home / Destinations / Services / About / Contact + "Plan My Trip" CTA; "My Trips" when authenticated
+- ✅ Itinerary builder preserved as "Plan My Trip" feature behind signup/login
+- ✅ Tests: 21/21 backend passing (brute-force fixed in v1 retest)
 
 ## Test Status
 - Backend: 17/17 tests passing after fixes (brute-force + tz datetime + logout + ItineraryUpdate None filter)

@@ -394,13 +394,22 @@ async def delete_itinerary(itinerary_id: str, user: dict = Depends(get_current_u
     return {"ok": True}
 
 
+class InquiryInput(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    email: EmailStr
+    phone: str = Field(default="", max_length=40)
+    destination: str = Field(default="", max_length=120)
+    travel_dates: str = Field(default="", max_length=120)
+    budget: str = Field(default="", max_length=60)
+    message: str = Field(default="", max_length=2000)
+
+
 @api.post("/inquiries")
-async def create_inquiry(payload: Dict[str, Any]):
+async def create_inquiry(payload: InquiryInput):
     # Contact form: public endpoint. Stores lead for follow-up.
-    allowed = {"name", "email", "phone", "destination", "travel_dates", "budget", "message"}
-    doc = {k: str(payload.get(k, ""))[:2000] for k in allowed}
-    if not doc.get("name") or not doc.get("email"):
-        raise HTTPException(status_code=400, detail="Name and email are required")
+    doc = payload.model_dump()
+    # drop empties for cleaner leads
+    doc = {k: v for k, v in doc.items() if v}
     doc["id"] = str(uuid.uuid4())
     doc["created_at"] = datetime.now(timezone.utc).isoformat()
     doc["status"] = "new"
