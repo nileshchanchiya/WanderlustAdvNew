@@ -35,10 +35,15 @@ export default function Signup() {
       <div className="flex items-center justify-center p-6 sm:p-10 order-2 lg:order-1">
         <div className="w-full max-w-md">
           <Link to="/" className="inline-flex items-center gap-2">
-            <span className="h-8 w-8 rounded-lg bg-terracotta text-white grid place-items-center">
+            <span className="h-9 w-9 rounded-full bg-ocean text-gold grid place-items-center">
               <Compass className="h-4 w-4" strokeWidth={1.8} />
             </span>
-            <span className="font-display text-lg font-bold">Itinera</span>
+            <span className="flex flex-col leading-none">
+              <span className="font-display text-[20px] font-bold text-ocean">Wanderlust</span>
+              <span className="font-label text-[10px] tracking-[0.22em] uppercase text-driftwood font-semibold -mt-0.5">
+                Adventure
+              </span>
+            </span>
           </Link>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mt-10">
             Create your account.

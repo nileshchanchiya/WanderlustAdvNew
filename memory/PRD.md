@@ -46,6 +46,28 @@ Create a fully functional production-ready itinerary app.
 - ✅ Itinerary builder preserved as "Plan My Trip" feature behind signup/login
 - ✅ Tests: 21/21 backend passing (brute-force fixed in v1 retest)
 
+### v3 — Design system overhaul (Wanderlust design doc applied)
+- ✅ Deep Ocean `#0A3D62` + Horizon Gold `#F5A623` + Sand Dune `#F7F3ED` + Driftwood/Fog/Charcoal palette
+- ✅ Cormorant Garamond / Playfair Display / Lato / Montserrat / IBM Plex Mono typography system
+- ✅ Elevation scale (lift/float/hover/modal), sunset gradient CTAs, ocean gradient nav/footer
+- ✅ Pill-shaped CTAs with Montserrat uppercase labels; destination cards with shadow lift + duration chip + From price
+
+### v4 — SEO + Custom destinations (current)
+- ✅ `react-helmet-async` installed; reusable `<Seo />` component injects title, description, canonical, OG/Twitter/geo meta
+- ✅ `businessSchema` (TravelAgency + LocalBusiness) + `faqSchema` + `breadcrumbSchema` helpers
+- ✅ Home renders TravelAgency+LocalBusiness and FAQPage JSON-LD (2 scripts)
+- ✅ FAQ section on home with 5 curated Rajkot-local Q&A (SEO rich-results ready)
+- ✅ Real Rajkot NAP across Navbar/Footer/Contact: `+91 8160317044`, `info@wanderlustadventure.in`, `Everest Park, Kalawad Road, Rajkot 360005, Gujarat`
+- ✅ WhatsApp FAB defaults to `918160317044` (env-overridable)
+- ✅ `public/index.html` base meta (title, description, keywords, theme-color, geo, preconnect)
+- ✅ `public/sitemap.xml` with wanderlustadventure.in URLs; `public/robots.txt` (preview path intercepted by ingress; prod ok)
+- ✅ Per-page `<Seo />` on Home/About/Services/Contact/Destinations/Signup; Login marked `noIndex`
+- ✅ Canonical deduplication (removed static canonical from index.html; Helmet is single source of truth)
+- ✅ Custom destinations CRUD: `GET/POST/DELETE /api/destinations` (user-scoped, auth-required)
+- ✅ Destinations page: logged-in users see "Add Destination" button → modal → custom card with "CUSTOM" badge + hover delete; logged-out users see "Sign in to add" CTA
+- ✅ Login/Signup pages rebranded from "Itinera" → "Wanderlust Adventure" (ocean+gold compass logo)
+- ✅ Tests: 30/30 backend pytest; frontend Destinations CRUD verified green by testing agent
+
 ## Test Status
 - Backend: 17/17 tests passing after fixes (brute-force + tz datetime + logout + ItineraryUpdate None filter)
 - Frontend: 100 % of critical flows (signup, dashboard, create, tabs, edit, logout, protected route)

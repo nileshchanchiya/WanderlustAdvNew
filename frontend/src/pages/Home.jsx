@@ -129,6 +129,12 @@ const TESTIMONIALS = [
 export default function Home() {
   return (
     <div className="min-h-screen bg-ink-0">
+      <Seo
+        title="Best Travel Agency in Rajkot | Wanderlust Adventure"
+        description="Wanderlust Adventure is Rajkot's most trusted travel agency offering domestic & international tour packages, itinerary planning, visa assistance, and honeymoon packages. Call +91 8160317044 today."
+        path="/"
+        jsonLd={[businessSchema(), faqSchema(FAQ)]}
+      />
       <Navbar />
 
       {/* HERO */}
