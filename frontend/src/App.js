@@ -2,6 +2,7 @@ import React from "react";
 import "@/App.css";
 import "@/index.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Home from "@/pages/Home";
@@ -19,37 +20,39 @@ import { Toaster } from "sonner";
 function App() {
   return (
     <div className="App">
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/services" element={<Services />} />
-            <Route path="/destinations" element={<Destinations />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/itinerary/:id"
-              element={
-                <ProtectedRoute>
-                  <ItineraryDetail />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-          <WhatsAppFab />
-          <Toaster position="top-right" richColors closeButton />
-        </BrowserRouter>
-      </AuthProvider>
+      <HelmetProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/services" element={<Services />} />
+              <Route path="/destinations" element={<Destinations />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/itinerary/:id"
+                element={
+                  <ProtectedRoute>
+                    <ItineraryDetail />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+            <WhatsAppFab />
+            <Toaster position="top-right" richColors closeButton />
+          </BrowserRouter>
+        </AuthProvider>
+      </HelmetProvider>
     </div>
   );
 }

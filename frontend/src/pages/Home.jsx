@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import Seo, { businessSchema, faqSchema } from "@/components/Seo";
 import {
   ArrowUpRight,
   Compass,
@@ -16,7 +17,31 @@ import {
   Quote,
   Star,
   MapPin,
+  HelpCircle,
 } from "lucide-react";
+
+const FAQ = [
+  {
+    q: "What is the best travel agency in Rajkot?",
+    a: "Wanderlust Adventure, founded in 2021 by Nilesh Chanchiya, is one of Rajkot's most trusted travel agencies located at Everest Park, Kalawad Road. We offer domestic and international tour packages, visa assistance, flight bookings, and customised itinerary planning. Call us at +91 8160317044.",
+  },
+  {
+    q: "Does Wanderlust Adventure offer international tour packages?",
+    a: "Yes. We specialise in international packages to Dubai, Bali, Thailand, Europe and more. All packages include visa assistance, flights, hotels and guided tours.",
+  },
+  {
+    q: "What is the starting price for tour packages from Rajkot?",
+    a: "Domestic packages start from ₹8,000 per person and international packages start from ₹25,000. We offer budget, standard and luxury options for every traveller.",
+  },
+  {
+    q: "Do you offer a travel itinerary maker?",
+    a: "Yes — Wanderlust Adventure offers a free online itinerary maker where you can plan day-by-day travel itineraries for any destination in India or abroad. Create an account and start planning in minutes.",
+  },
+  {
+    q: "How do I contact Wanderlust Adventure?",
+    a: "Call or WhatsApp us at +91 8160317044, email info@wanderlustadventure.in, or visit us at Everest Park, Kalawad Road, Rajkot 360005, Gujarat.",
+  },
+];
 
 const HIGHLIGHTS = [
   { icon: Sparkles, title: "Customised Packages", desc: "Tailor-made trips that fit your style & budget." },
@@ -279,6 +304,42 @@ export default function Home() {
               </figure>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32">
+        <div className="mb-12 text-center">
+          <div className="label-caps text-gold">05 — FAQ</div>
+          <h2 className="font-serif text-4xl sm:text-5xl font-bold mt-4 text-ocean leading-[1.1] tracking-tight">
+            Questions travellers <em className="italic font-normal">ask</em>.
+          </h2>
+        </div>
+        <div className="space-y-3">
+          {FAQ.map((item, i) => (
+            <details
+              key={i}
+              className="group bg-white border border-fog/60 rounded-2xl p-6 shadow-lift hover:shadow-float transition-all open:border-gold/60"
+              data-testid={`faq-${i}`}
+            >
+              <summary className="flex items-start justify-between gap-4 cursor-pointer list-none">
+                <span className="font-serif text-lg font-bold text-ocean">{item.q}</span>
+                <HelpCircle
+                  className="h-5 w-5 text-gold shrink-0 group-open:rotate-180 transition-transform"
+                  strokeWidth={1.5}
+                />
+              </summary>
+              <p className="mt-4 text-driftwood leading-relaxed font-body">{item.a}</p>
+            </details>
+          ))}
+        </div>
+        <div className="mt-12 text-center">
+          <p className="text-driftwood font-body">
+            More questions? Call us at{" "}
+            <a href="tel:+918160317044" className="font-mono text-ocean hover:text-gold">
+              +91 8160317044
+            </a>
+          </p>
         </div>
       </section>
 

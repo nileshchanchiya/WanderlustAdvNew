@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import Seo from "@/components/Seo";
 import { Compass, Loader2 } from "lucide-react";
 
 export default function Signup() {
@@ -26,6 +27,11 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-ink-0">
+      <Seo
+        title="Create Account — Wanderlust Adventure Itinerary Maker"
+        description="Sign up for Wanderlust Adventure to use our free itinerary maker, save custom destinations, and plan your perfect trip from Rajkot."
+        path="/signup"
+      />
       <div className="flex items-center justify-center p-6 sm:p-10 order-2 lg:order-1">
         <div className="w-full max-w-md">
           <Link to="/" className="inline-flex items-center gap-2">

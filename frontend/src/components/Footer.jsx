@@ -47,13 +47,17 @@ export default function Footer() {
           <ul className="space-y-2.5 text-sm">
             <li className="flex items-center gap-2">
               <Phone className="h-4 w-4 text-gold" strokeWidth={1.5} />
-              <a href="tel:+919876543210" className="hover:text-gold">+91 98765 43210</a>
+              <a href="tel:+918160317044" className="hover:text-gold">+91 8160317044</a>
             </li>
             <li className="flex items-center gap-2">
               <Mail className="h-4 w-4 text-gold" strokeWidth={1.5} />
-              <a href="mailto:hello@wanderlustadventure.com" className="hover:text-gold">
-                hello@wanderlustadventure.com
+              <a href="mailto:info@wanderlustadventure.in" className="hover:text-gold">
+                info@wanderlustadventure.in
               </a>
+            </li>
+            <li className="flex items-start gap-2 text-white/70">
+              <span className="text-gold mt-0.5">◆</span>
+              <span>Everest Park, Kalawad Road,<br />Rajkot, Gujarat 360005 · India</span>
             </li>
           </ul>
           <div className="mt-5 flex items-center gap-3">
@@ -68,7 +72,7 @@ export default function Footer() {
       </div>
       <div className="border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-center justify-between text-xs text-white/60">
-          <div>© 2026 Wanderlust Adventure. All rights reserved.</div>
+          <div>© 2026 Wanderlust Adventure · Rajkot, Gujarat · Founded by Nilesh Chanchiya</div>
           <div className="font-mono">Travel · Curated · Personal</div>
         </div>
       </div>

@@ -1,0 +1,47 @@
+{
+  "summary": "Iteration 3 — SEO + Custom Destinations CRUD. Backend: 30/30 pytest tests PASS, including 9 new TestDestinations tests covering auth-required, create+GET persistence, region-validation rejection (422), per-user list isolation, cross-user delete returning 404, and own-delete success. All previous regression tests (auth, brute-force, itinerary CRUD with isolation, inquiries) still pass. Frontend: Custom destination flow works end-to-end (login → /destinations → Add Destination button → modal opens → fill → submit → new card appears at top with 'Custom' badge + 'Custom destination saved' toast). Logged-out state correctly shows 'Sign in to add' (data-testid=add-destination-login). NAP across Footer/Navbar/Contact and Home shows the new Rajkot details (+91 8160317044, info@wanderlustadventure.in, Kalawad Road Rajkot 360005). WhatsApp FAB href = https://wa.me/918160317044 (✓). FAQ data-testids faq-0..faq-4 all visible on Home. Public /sitemap.xml returns 200 with valid XML containing wanderlustadventure.in URLs. Per-page <title> from react-helmet-async works on all pages. TWO BUGS surfaced: (1) Home page imports Seo/businessSchema/faqSchema but NEVER renders <Seo />, so Home has 0 JSON-LD scripts (TravelAgency+LocalBusiness+FAQPage missing in DOM). (2) Canonical is duplicated — index.html ships a static <link rel=canonical href=https://wanderlustadventure.in/> AND react-helmet-async appends its own; on /destinations the page has TWO canonical tags (root + /destinations). Search engines should not see two canonicals.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "pages/Home.jsx", "issue": "Imports Seo, businessSchema, faqSchema but never renders <Seo title='...' description='...' path='/' jsonLd={[businessSchema(), faqSchema(FAQ)]} />. Result: Home has 0 JSON-LD scripts in DOM (verified via document.querySelectorAll('script[type=application/ld+json']).length === 0). The TravelAgency+LocalBusiness+FAQPage structured data required by the SEO plan is therefore missing from the home page.", "selector": "script[type='application/ld+json']", "priority": "HIGH"},
+      {"component": "public/index.html + components/Seo.jsx", "issue": "Duplicate <link rel='canonical'>. index.html ships a hard-coded canonical to https://wanderlustadventure.in/ and Helmet appends a per-page canonical without removing the static one. Verified on /destinations: document.querySelectorAll('link[rel=canonical]').length === 2 with hrefs ['https://wanderlustadventure.in/', 'https://wanderlustadventure.in/destinations']. Fix: remove the static canonical from public/index.html and let Helmet own it.", "selector": "link[rel='canonical']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Signup", "issues": ["Header logo + brand on /signup still says 'Itinera' (old brand) instead of 'Wanderlust Adventure'. Visible in screenshot of /signup. Likely the auth-side branded layout missed the rebrand pass."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Render <Seo title='Best Travel Agency in Rajkot — Wanderlust Adventure' description='...' path='/' jsonLd={[businessSchema(), faqSchema(FAQ)]} /> at the top of pages/Home.jsx (the imports already exist).",
+    "Remove the static <link rel='canonical' href='https://wanderlustadventure.in/' /> from public/index.html so Helmet is the single source of truth for canonical (currently produces two canonical tags per page).",
+    "Update the auth/login layout brand from 'Itinera' to 'Wanderlust Adventure' on /signup (and verify /login)."
+  ],
+  "critical_code_review_comments": [
+    "Seo.jsx is well-structured (SITE/businessSchema/faqSchema/breadcrumbSchema) but Home.jsx never invokes it — silent dead import. Add a lint rule or use the imports.",
+    "public/index.html should not duplicate any tag that Helmet manages (title, canonical, og:*). Today canonical is duplicated; consider trimming index.html to bare-minimum boot-time meta only.",
+    "server.py /api/destinations stores an arbitrary image_url (max 500) but never validates it's a URL — tighten to HttpUrl or regex if you want to surface only safe images on cards.",
+    "Destinations.jsx custom card 'delete-dest-<id>' button only shows on hover; consider keyboard-accessible visibility (focus-within) for a11y.",
+    "robots.txt in preview is overridden by ingress (per main agent note) — verify on production wanderlustadventure.in that robots.txt and sitemap.xml are reachable from /. (sitemap.xml works on preview — confirmed 200 with correct XML.)",
+    "Iteration_2 leftover: WhatsApp number is now correctly /918160317044/, but the message string is hardcoded in WhatsAppFab.jsx; consider env var for easy edits."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py"
+  ],
+  "success_rate": {
+    "backend": "100% (30/30 pytest)",
+    "frontend": "Destinations CRUD UI flow 100% pass; SEO partial — title+canonical override works on non-Home pages, BUT Home JSON-LD missing and canonical is duplicated everywhere"
+  },
+  "test_credentials": "admin@itinera.app / admin123 (verified). Test users created via /api/auth/register with TEST_-prefix data; auto-cleanup in test class teardown.",
+  "seed_data_creation": "Pytest creates ~6 throwaway TEST_-prefixed destinations (cleaned up by test_cleanup_destinations) and 4 TEST_ inquiries (left in DB; main agent may purge). One UI-flow destination 'TEST_UI_Manali' was deleted via admin API after Playwright test.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend suite at /app/backend/tests/backend_test.py now has 30 tests across health, auth, itinerary, inquiries, destinations — all green. SEO/Helmet caveats: (a) values are only in DOM (not HTML source), use page.evaluate to verify; (b) the static canonical in public/index.html duplicates Helmet's canonical — fix by removing it; (c) Home.jsx never renders <Seo />, so JSON-LD count there is 0. Custom-destination Playwright happy-path is verified including create + new card with 'Custom' badge + toast. Delete-on-hover button (data-testid=delete-dest-<id>) was not exercised in UI but the underlying DELETE API is verified. Login endpoint correctly redirects to /dashboard.",
+  "rca_of_the_issue": "Issue 1 — Home JSON-LD missing. RCA: pages/Home.jsx imports {Seo, businessSchema, faqSchema} from @/components/Seo at line 5 but never invokes <Seo .../> in JSX (grep '<Seo' Home.jsx → 0 matches). The TravelAgency/LocalBusiness/FAQPage schema generators exist and are correct; they simply aren't mounted. Reproduction: visit / and run document.querySelectorAll('script[type=application/ld+json']).length → 0. Fix: render <Seo title='...' description='...' path='/' jsonLd={[businessSchema(), faqSchema(FAQ)]} /> as the first child of the page component. Issue 2 — duplicate canonical. RCA: public/index.html ships a fixed <link rel='canonical' href='https://wanderlustadventure.in/'>, and react-helmet-async by design APPENDS managed tags rather than replacing pre-existing static ones unless they are added by Helmet itself. Reproduction: visit /destinations and run document.querySelectorAll('link[rel=canonical]') → length 2. Mitigation: remove the canonical line from public/index.html (Helmet's per-page canonical via Seo.jsx is sufficient)."
+}

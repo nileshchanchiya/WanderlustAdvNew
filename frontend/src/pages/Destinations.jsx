@@ -1,8 +1,13 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { MapPin, ArrowUpRight } from "lucide-react";
+import Seo from "@/components/Seo";
+import AddDestinationModal from "@/components/AddDestinationModal";
+import { useAuth } from "@/context/AuthContext";
+import api, { formatApiError } from "@/lib/api";
+import { toast } from "sonner";
+import { MapPin, ArrowUpRight, Plus, Trash2, Sparkles } from "lucide-react";
 
 const DESTS = [
   { region: "international", name: "Dubai", tag: "Luxury · Skyline", img: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1200&q=80", budget: "luxury", theme: "family" },
@@ -40,93 +45,224 @@ const REGIONS = [
 ];
 
 export default function Destinations() {
+  const { user } = useAuth();
   const [region, setRegion] = useState("all");
   const [theme, setTheme] = useState("all");
   const [budget, setBudget] = useState("all");
+  const [customs, setCustoms] = useState([]);
+  const [showAdd, setShowAdd] = useState(false);
+
+  const loggedIn = user && user !== false && user !== null;
+
+  useEffect(() => {
+    if (!loggedIn) {
+      setCustoms([]);
+      return;
+    }
+    (async () => {
+      try {
+        const { data } = await api.get("/destinations");
+        setCustoms(data);
+      } catch (e) {
+        toast.error(formatApiError(e));
+      }
+    })();
+  }, [loggedIn]);
+
+  const onCreated = (d) => {
+    setCustoms((prev) => [d, ...prev]);
+    setShowAdd(false);
+    toast.success("Custom destination saved");
+  };
+
+  const onDelete = async (id) => {
+    if (!window.confirm("Delete this destination?")) return;
+    try {
+      await api.delete(`/destinations/${id}`);
+      setCustoms((prev) => prev.filter((c) => c.id !== id));
+      toast.success("Removed");
+    } catch (e) {
+      toast.error(formatApiError(e));
+    }
+  };
+
+  // Normalise user customs to the shape we render
+  const customEntries = useMemo(
+    () =>
+      customs.map((c) => ({
+        id: c.id,
+        region: c.region,
+        name: c.name,
+        tag: c.tag || c.theme || "Custom",
+        img: c.image_url || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80",
+        budget: c.budget || "mid",
+        theme: c.theme || "family",
+        custom: true,
+      })),
+    [customs]
+  );
+
+  const allEntries = useMemo(() => [...customEntries, ...DESTS], [customEntries]);
 
   const filtered = useMemo(
     () =>
-      DESTS.filter(
+      allEntries.filter(
         (d) =>
           (region === "all" || d.region === region) &&
           (theme === "all" || d.theme === theme) &&
           (budget === "all" || d.budget === budget)
       ),
-    [region, theme, budget]
+    [allEntries, region, theme, budget]
   );
 
   return (
     <div className="min-h-screen bg-ink-0">
+      <Seo
+        title="Tour Package Destinations from Rajkot | Wanderlust Adventure"
+        description="Explore curated domestic and international destinations from Rajkot — Dubai, Bali, Maldives, Kerala, Goa, Kashmir and more. Filter by region, theme & budget."
+        path="/destinations"
+      />
       <Navbar />
 
-      <section className="border-b border-navy/10">
+      <section className="border-b border-fog/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="label-caps text-gold-ink">Destinations</div>
-          <h1 className="font-serif text-5xl sm:text-6xl font-normal text-navy mt-4 leading-[1.02] tracking-tight">
-            Places we <em className="text-gold">love planning</em> for.
+          <div className="label-caps text-gold">Destinations</div>
+          <h1 className="font-serif text-5xl sm:text-6xl font-bold text-ocean mt-4 leading-[1.02] tracking-tight">
+            Places we <em className="italic font-normal">love planning</em> for.
           </h1>
-          <p className="mt-5 text-ink-600 max-w-2xl leading-relaxed">
+          <p className="mt-5 text-driftwood max-w-2xl leading-relaxed font-body text-lg">
             Filter by region, theme and budget — every destination below is one we have real experience with and curated partners on the ground.
           </p>
         </div>
       </section>
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="bg-white border border-navy/10 rounded-xl p-5 flex flex-wrap items-center gap-4">
+        <div className="bg-white border border-fog/60 rounded-2xl p-5 shadow-lift flex flex-wrap items-center gap-4">
           <FilterGroup label="Region" value={region} onChange={setRegion} options={REGIONS} testid="filter-region" />
           <FilterGroup label="Theme" value={theme} onChange={setTheme} options={THEMES} testid="filter-theme" />
           <FilterGroup label="Budget" value={budget} onChange={setBudget} options={BUDGETS} testid="filter-budget" />
-          <div className="ml-auto text-sm text-ink-500 font-mono">{filtered.length} results</div>
+          <div className="ml-auto flex items-center gap-4">
+            <div className="text-sm text-driftwood font-mono">{filtered.length} results</div>
+            {loggedIn ? (
+              <button
+                onClick={() => setShowAdd(true)}
+                className="inline-flex items-center gap-2 bg-sunset text-charcoal rounded-full px-4 py-2 font-label text-xs font-semibold uppercase tracking-wider shadow-lift hover:shadow-float transition-all"
+                data-testid="add-destination-btn"
+              >
+                <Plus className="h-3.5 w-3.5" strokeWidth={2.2} />
+                Add Destination
+              </button>
+            ) : (
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-2 border border-ocean/30 text-ocean hover:bg-ocean hover:text-white rounded-full px-4 py-2 font-label text-xs font-semibold uppercase tracking-wider transition-colors"
+                data-testid="add-destination-login"
+              >
+                <Plus className="h-3.5 w-3.5" strokeWidth={2.2} />
+                Sign in to add
+              </Link>
+            )}
+          </div>
         </div>
+        {!loggedIn && (
+          <p className="mt-3 text-xs text-driftwood flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-gold" strokeWidth={1.5} />
+            Sign in to curate your own dream-list — add bucket-list places with notes only you can see.
+          </p>
+        )}
       </section>
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
         {filtered.length === 0 ? (
-          <div className="bg-white border border-dashed border-navy/15 rounded-xl py-16 text-center">
-            <p className="font-serif text-2xl font-semibold text-navy">No matches</p>
-            <p className="text-ink-500 mt-2">Try loosening a filter — or tell us what you have in mind.</p>
+          <div className="bg-white border border-dashed border-fog rounded-2xl py-16 text-center shadow-lift">
+            <p className="font-serif text-2xl font-bold text-ocean">No matches</p>
+            <p className="text-driftwood mt-2 font-body">Try loosening a filter — or tell us what you have in mind.</p>
             <Link
               to="/contact"
-              className="mt-6 inline-flex items-center gap-2 bg-navy hover:bg-navy-hover text-white rounded-lg px-5 py-2.5 font-medium"
+              className="mt-6 inline-flex items-center gap-2 bg-ocean hover:bg-ocean-light text-white rounded-full px-6 py-2.5 font-label text-sm font-semibold uppercase tracking-wider"
             >
               Ask us directly <ArrowUpRight className="h-4 w-4" />
             </Link>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((d) => (
-              <Link
-                key={d.name}
-                to="/contact"
-                className="group relative overflow-hidden rounded-xl border border-navy/10 bg-white block"
-                data-testid={`dest-${d.name.toLowerCase()}`}
-              >
-                <div className="aspect-[4/5] overflow-hidden">
-                  <img src={d.img} alt={d.name} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-navy-deep/85 via-navy-deep/10 to-transparent" />
-                <div className="absolute top-4 left-4 flex gap-1.5">
-                  <Badge>{d.region === "international" ? "International" : "Domestic"}</Badge>
-                  <Badge variant="gold">{capitalize(d.budget)}</Badge>
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-                  <div className="flex items-center gap-1.5 text-xs text-gold">
-                    <MapPin className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    {d.tag}
-                  </div>
-                  <div className="font-serif text-2xl mt-1">{d.name}</div>
-                  <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-white/80 group-hover:text-gold transition-colors">
-                    Plan this trip <ArrowUpRight className="h-3.5 w-3.5" />
-                  </div>
-                </div>
-              </Link>
+              <DestCard key={d.id || d.name} d={d} onDelete={onDelete} />
             ))}
           </div>
         )}
       </section>
 
+      {showAdd && (
+        <AddDestinationModal onClose={() => setShowAdd(false)} onCreated={onCreated} />
+      )}
+
       <Footer />
     </div>
+  );
+}
+
+function DestCard({ d, onDelete }) {
+  const href = d.custom ? null : "/contact";
+  const Inner = (
+    <>
+      <div className="aspect-[4/5] overflow-hidden">
+        <img
+          src={d.img}
+          alt={d.name}
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+          loading="lazy"
+        />
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-ocean-deep/85 via-ocean-deep/10 to-transparent" />
+      <div className="absolute top-4 left-4 flex gap-1.5">
+        {d.custom ? (
+          <Badge variant="gold">Custom</Badge>
+        ) : (
+          <Badge>{d.region === "international" ? "International" : "Domestic"}</Badge>
+        )}
+        {!d.custom && <Badge variant="gold">{capitalize(d.budget)}</Badge>}
+      </div>
+      {d.custom && (
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDelete(d.id);
+          }}
+          className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 rounded-full bg-white/90 text-danger hover:bg-white transition-all"
+          data-testid={`delete-dest-${d.id}`}
+          aria-label="delete"
+        >
+          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
+        </button>
+      )}
+      <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+        <div className="flex items-center gap-1.5 text-xs text-gold font-label uppercase tracking-wider font-semibold">
+          <MapPin className="h-3.5 w-3.5" strokeWidth={1.5} />
+          {d.tag}
+        </div>
+        <div className="font-display text-3xl mt-1 leading-none">{d.name}</div>
+        <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-white/80 group-hover:text-gold font-label uppercase tracking-wider font-semibold transition-colors">
+          {d.custom ? "Plan this trip" : "Plan this trip"} <ArrowUpRight className="h-3.5 w-3.5" />
+        </div>
+      </div>
+    </>
+  );
+  const className =
+    "group relative overflow-hidden rounded-2xl border border-fog/60 bg-white block shadow-lift hover:shadow-hover transition-all duration-300 hover:-translate-y-1";
+
+  if (href) {
+    return (
+      <Link to={href} className={className} data-testid={`dest-${d.name.toLowerCase().replace(/\s+/g, "-")}`}>
+        {Inner}
+      </Link>
+    );
+  }
+  return (
+    <Link to="/contact" className={className} data-testid={`dest-custom-${d.id}`}>
+      {Inner}
+    </Link>
   );
 }
 
@@ -139,10 +275,10 @@ function FilterGroup({ label, value, onChange, options, testid }) {
           <button
             key={o.k}
             onClick={() => onChange(o.k)}
-            className={`text-xs rounded-md px-3 py-1.5 border transition-colors ${
+            className={`font-label text-xs font-semibold uppercase tracking-wider rounded-md px-3 py-1.5 border transition-colors ${
               value === o.k
-                ? "bg-navy text-white border-navy"
-                : "bg-white text-ink-700 border-navy/15 hover:bg-navy-soft"
+                ? "bg-ocean text-white border-ocean"
+                : "bg-white text-charcoal border-fog hover:bg-sand"
             }`}
           >
             {o.label}
@@ -156,8 +292,8 @@ function FilterGroup({ label, value, onChange, options, testid }) {
 function Badge({ children, variant }) {
   return (
     <span
-      className={`text-[10px] uppercase tracking-[0.18em] font-semibold rounded-md px-2 py-1 ${
-        variant === "gold" ? "bg-gold text-navy" : "bg-white/90 text-navy"
+      className={`font-label text-[10px] uppercase tracking-[0.12em] font-semibold rounded-md px-2 py-1 ${
+        variant === "gold" ? "bg-gold text-charcoal" : "bg-white/90 text-ocean"
       }`}
     >
       {children}

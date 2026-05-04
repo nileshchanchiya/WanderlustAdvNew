@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import Seo from "@/components/Seo";
 import {
   Sparkles,
   Globe,
@@ -55,6 +56,11 @@ const SERVICES = [
 export default function Services() {
   return (
     <div className="min-h-screen bg-ink-0">
+      <Seo
+        title="Our Travel Services — Rajkot Tour Packages, Visa, Flights & Hotels"
+        description="Wanderlust Adventure offers customised travel packages, domestic & international tours, expert consulting, flight + hotel booking, visa assistance, and budget optimisation from Rajkot, Gujarat."
+        path="/services"
+      />
       <Navbar />
 
       <section className="border-b border-navy/10 bg-white">

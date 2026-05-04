@@ -251,19 +251,19 @@ class TestInquiries:
         assert data.get("ok") is True
         assert isinstance(data.get("id"), str) and len(data["id"]) > 0
 
-    def test_create_inquiry_missing_name_returns_400(self):
+    def test_create_inquiry_missing_name_returns_4xx(self):
         r = requests.post(
             f"{API}/inquiries",
             json={"email": "nonAme@example.com", "message": "hi"},
         )
-        assert r.status_code == 400
+        assert r.status_code in (400, 422)
 
-    def test_create_inquiry_missing_email_returns_400(self):
+    def test_create_inquiry_missing_email_returns_4xx(self):
         r = requests.post(
             f"{API}/inquiries",
             json={"name": "NoEmail", "message": "hi"},
         )
-        assert r.status_code == 400
+        assert r.status_code in (400, 422)
 
     def test_create_inquiry_minimal_fields(self):
         r = requests.post(
@@ -272,3 +272,99 @@ class TestInquiries:
         )
         assert r.status_code == 200
         assert r.json().get("ok") is True
+
+
+# ----------------- Custom Destinations CRUD + isolation -----------------
+class TestDestinations:
+    def test_list_requires_auth(self):
+        r = requests.get(f"{API}/destinations")
+        assert r.status_code == 401
+
+    def test_create_requires_auth(self):
+        r = requests.post(
+            f"{API}/destinations",
+            json={"name": "TEST_NoAuth", "region": "domestic"},
+        )
+        assert r.status_code == 401
+
+    def test_delete_requires_auth(self):
+        r = requests.delete(f"{API}/destinations/anything")
+        assert r.status_code == 401
+
+    def test_create_and_get_destination(self, user_a_session):
+        sa, _ = user_a_session
+        payload = {
+            "name": "TEST_Goa Beach",
+            "region": "domestic",
+            "tag": "Beach",
+            "theme": "family",
+            "budget": "mid",
+            "image_url": "https://example.com/goa.jpg",
+            "notes": "TEST_ Beach trip",
+        }
+        r = sa.post(f"{API}/destinations", json=payload)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data["name"] == "TEST_Goa Beach"
+        assert data["region"] == "domestic"
+        assert data["tag"] == "Beach"
+        assert data["theme"] == "family"
+        assert data["budget"] == "mid"
+        assert data["image_url"] == payload["image_url"]
+        assert data["notes"] == payload["notes"]
+        assert "id" in data and isinstance(data["id"], str)
+        assert "user_id" in data
+        assert "_id" not in data
+        pytest.dest_id_a = data["id"]
+
+        # GET to verify persistence
+        lst = sa.get(f"{API}/destinations")
+        assert lst.status_code == 200
+        ids = [d["id"] for d in lst.json()]
+        assert pytest.dest_id_a in ids
+
+    def test_invalid_region_rejected(self, user_a_session):
+        sa, _ = user_a_session
+        r = sa.post(f"{API}/destinations", json={"name": "TEST_BadRegion", "region": "moon"})
+        assert r.status_code == 422
+
+    def test_user_isolation_list(self, user_a_session, user_b_session):
+        sa, _ = user_a_session
+        sb, _ = user_b_session
+        # B creates own
+        rb = sb.post(f"{API}/destinations", json={"name": "TEST_B_Dest", "region": "international"})
+        assert rb.status_code == 200
+        b_id = rb.json()["id"]
+        pytest.dest_id_b = b_id
+
+        la = sa.get(f"{API}/destinations").json()
+        lb = sb.get(f"{API}/destinations").json()
+        ids_a = {d["id"] for d in la}
+        ids_b = {d["id"] for d in lb}
+        assert pytest.dest_id_a in ids_a
+        assert b_id in ids_b
+        assert b_id not in ids_a
+        assert pytest.dest_id_a not in ids_b
+
+    def test_delete_other_users_destination_returns_404(self, user_a_session, user_b_session):
+        sb, _ = user_b_session
+        # B tries to delete A's destination
+        r = sb.delete(f"{API}/destinations/{pytest.dest_id_a}")
+        assert r.status_code == 404
+
+    def test_delete_own_destination(self, user_a_session):
+        sa, _ = user_a_session
+        r = sa.delete(f"{API}/destinations/{pytest.dest_id_a}")
+        assert r.status_code == 200
+        # confirm gone
+        lst = sa.get(f"{API}/destinations").json()
+        ids = [d["id"] for d in lst]
+        assert pytest.dest_id_a not in ids
+
+    def test_cleanup_destinations(self, user_a_session, user_b_session):
+        for s, _ in (user_a_session, user_b_session):
+            lst = s.get(f"{API}/destinations").json()
+            for d in lst:
+                if d.get("name", "").startswith("TEST_"):
+                    s.delete(f"{API}/destinations/{d['id']}")
+

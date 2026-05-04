@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import Seo from "@/components/Seo";
 import { Compass, Loader2 } from "lucide-react";
 
 export default function Login() {
@@ -25,6 +26,12 @@ export default function Login() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-ink-0">
+      <Seo
+        title="Log in — Wanderlust Adventure"
+        description="Log in to your Wanderlust Adventure account to access your saved itineraries and custom destinations."
+        path="/login"
+        noIndex
+      />
       <div className="hidden lg:block relative border-r border-ink-200 bg-ink-50 grain overflow-hidden">
         <img
           src="https://images.pexels.com/photos/8092410/pexels-photo-8092410.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"

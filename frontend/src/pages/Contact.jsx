@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import Seo from "@/components/Seo";
 import api, { formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 import { Phone, Mail, MessageCircle, Send, Loader2, CheckCircle2, MapPin } from "lucide-react";
@@ -43,6 +44,11 @@ export default function Contact() {
 
   return (
     <div className="min-h-screen bg-ink-0">
+      <Seo
+        title="Contact Wanderlust Adventure — Travel Agency in Rajkot"
+        description="Get in touch with Wanderlust Adventure in Rajkot. Call +91 8160317044 or email info@wanderlustadventure.in. Free consultation and personalised tour quotes within 24 hours."
+        path="/contact"
+      />
       <Navbar />
 
       <section className="border-b border-navy/10">
@@ -61,38 +67,38 @@ export default function Contact() {
         {/* Contact info */}
         <aside className="lg:col-span-4 space-y-4">
           <a
-            href="tel:+919876543210"
-            className="flex items-start gap-4 p-6 bg-white border border-navy/10 rounded-xl hover:border-gold transition-colors"
+            href="tel:+918160317044"
+            className="flex items-start gap-4 p-6 bg-white border border-fog/60 rounded-xl hover:border-gold transition-colors shadow-lift"
             data-testid="contact-phone-link"
           >
-            <span className="h-10 w-10 rounded-lg bg-navy-soft text-navy grid place-items-center shrink-0">
+            <span className="h-10 w-10 rounded-lg bg-gold-soft text-ocean grid place-items-center shrink-0">
               <Phone className="h-4 w-4" strokeWidth={1.5} />
             </span>
             <div>
-              <div className="label-caps text-ink-500">Call</div>
-              <div className="font-mono text-base text-navy mt-1">+91 98765 43210</div>
-              <div className="text-xs text-ink-500 mt-1">Mon–Sat · 10am – 8pm IST</div>
+              <div className="label-caps text-driftwood">Call</div>
+              <div className="font-mono text-base text-ocean mt-1">+91 8160317044</div>
+              <div className="text-xs text-driftwood mt-1">Mon–Sat · 10am – 7pm IST</div>
             </div>
           </a>
           <a
-            href="mailto:hello@wanderlustadventure.com"
-            className="flex items-start gap-4 p-6 bg-white border border-navy/10 rounded-xl hover:border-gold transition-colors"
+            href="mailto:info@wanderlustadventure.in"
+            className="flex items-start gap-4 p-6 bg-white border border-fog/60 rounded-xl hover:border-gold transition-colors shadow-lift"
             data-testid="contact-email-link"
           >
-            <span className="h-10 w-10 rounded-lg bg-navy-soft text-navy grid place-items-center shrink-0">
+            <span className="h-10 w-10 rounded-lg bg-gold-soft text-ocean grid place-items-center shrink-0">
               <Mail className="h-4 w-4" strokeWidth={1.5} />
             </span>
             <div>
-              <div className="label-caps text-ink-500">Email</div>
-              <div className="text-sm text-navy mt-1 break-all">hello@wanderlustadventure.com</div>
-              <div className="text-xs text-ink-500 mt-1">We reply within 24h</div>
+              <div className="label-caps text-driftwood">Email</div>
+              <div className="text-sm text-ocean mt-1 break-all">info@wanderlustadventure.in</div>
+              <div className="text-xs text-driftwood mt-1">We reply within 24h</div>
             </div>
           </a>
           <a
-            href="https://wa.me/919876543210"
+            href="https://wa.me/918160317044"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-start gap-4 p-6 bg-[#25D366] text-white rounded-xl hover:bg-[#1FAE54] transition-colors"
+            className="flex items-start gap-4 p-6 bg-[#25D366] text-white rounded-xl hover:bg-[#1FAE54] transition-colors shadow-lift"
             data-testid="contact-whatsapp-link"
           >
             <span className="h-10 w-10 rounded-lg bg-white/20 grid place-items-center shrink-0">
@@ -104,15 +110,15 @@ export default function Contact() {
               <div className="text-xs text-white/80 mt-1">Fastest replies</div>
             </div>
           </a>
-          <div className="p-6 bg-white border border-navy/10 rounded-xl">
+          <div className="p-6 bg-white border border-fog/60 rounded-xl shadow-lift">
             <div className="flex items-center gap-2 label-caps">
-              <MapPin className="h-3.5 w-3.5 text-gold-ink" strokeWidth={1.5} />
+              <MapPin className="h-3.5 w-3.5 text-gold" strokeWidth={1.5} />
               Office
             </div>
-            <div className="mt-3 text-sm text-ink-700 leading-relaxed">
-              Wanderlust Adventure HQ<br />
-              Koregaon Park, Pune 411001<br />
-              Maharashtra, India
+            <div className="mt-3 text-sm text-charcoal leading-relaxed">
+              Wanderlust Adventure<br />
+              Everest Park, Kalawad Road<br />
+              Rajkot 360005, Gujarat · India
             </div>
           </div>
         </aside>

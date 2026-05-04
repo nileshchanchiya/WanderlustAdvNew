@@ -394,6 +394,48 @@ async def delete_itinerary(itinerary_id: str, user: dict = Depends(get_current_u
     return {"ok": True}
 
 
+# ---------- Custom Destinations ----------
+class CustomDestinationInput(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    region: Literal["international", "domestic"] = "international"
+    tag: str = Field(default="", max_length=80)
+    theme: Literal["honeymoon", "family", "friends", "solo", "adventure", "luxury"] = "family"
+    budget: Literal["budget", "mid", "luxury"] = "mid"
+    image_url: str = Field(default="", max_length=500)
+    notes: str = Field(default="", max_length=1000)
+
+
+@api.get("/destinations")
+async def list_destinations(user: dict = Depends(get_current_user)):
+    uid = str(user["_id"])
+    cursor = db.custom_destinations.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1)
+    items = await cursor.to_list(length=500)
+    return items
+
+
+@api.post("/destinations")
+async def create_destination(data: CustomDestinationInput, user: dict = Depends(get_current_user)):
+    uid = str(user["_id"])
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": uid,
+        **data.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.custom_destinations.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api.delete("/destinations/{destination_id}")
+async def delete_destination(destination_id: str, user: dict = Depends(get_current_user)):
+    uid = str(user["_id"])
+    res = await db.custom_destinations.delete_one({"id": destination_id, "user_id": uid})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Destination not found")
+    return {"ok": True}
+
+
 class InquiryInput(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     email: EmailStr
@@ -424,6 +466,8 @@ async def on_startup():
     await db.login_attempts.create_index("identifier")
     await db.itineraries.create_index([("user_id", 1), ("created_at", -1)])
     await db.itineraries.create_index("id", unique=True)
+    await db.custom_destinations.create_index([("user_id", 1), ("created_at", -1)])
+    await db.custom_destinations.create_index("id", unique=True)
 
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")

@@ -1,7 +1,7 @@
 import React from "react";
 import { MessageCircle } from "lucide-react";
 
-const WHATSAPP_NUMBER = process.env.REACT_APP_WHATSAPP_NUMBER || "919876543210";
+const WHATSAPP_NUMBER = process.env.REACT_APP_WHATSAPP_NUMBER || "918160317044";
 const DEFAULT_MSG = encodeURIComponent(
   "Hi Wanderlust Adventure — I'd love to plan a trip. Could you help?"
 );

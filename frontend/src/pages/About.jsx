@@ -2,11 +2,17 @@ import React from "react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import Seo from "@/components/Seo";
 import { ArrowUpRight, Award, Heart, Target, Eye } from "lucide-react";
 
 export default function About() {
   return (
     <div className="min-h-screen bg-ink-0">
+      <Seo
+        title="About Wanderlust Adventure — Rajkot Travel Agency Founded by Nilesh Chanchiya"
+        description="Learn about Wanderlust Adventure, Rajkot's leading travel agency founded in 2021 by Nilesh Chanchiya. We serve travellers across Gujarat with honest, personalised travel planning."
+        path="/about"
+      />
       <Navbar />
 
       {/* HERO */}
