@@ -499,6 +499,65 @@ async def delete_destination(destination_id: str, admin: dict = Depends(require_
     return {"ok": True}
 
 
+# ---------- Google Maps integration ----------
+import httpx
+
+GOOGLE_MAPS_KEY = os.environ.get("GOOGLE_MAPS_KEY", "AIzaSyDzESV2Qc0Ik_pJMvgvrXCGaLL-UNOZFyw")
+
+
+@api.get("/maps/key")
+async def get_maps_key(user: dict = Depends(get_current_user)):
+    """Return Maps API key to authenticated users only."""
+    return {"key": GOOGLE_MAPS_KEY}
+
+
+@api.get("/maps/geocode")
+async def geocode_address(address: str, user: dict = Depends(get_current_user)):
+    """Geocode an address string → lat/lng using Google Geocoding API."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "https://maps.googleapis.com/maps/api/geocode/json",
+            params={"address": address, "key": GOOGLE_MAPS_KEY},
+        )
+        data = resp.json()
+    if data.get("status") != "OK" or not data.get("results"):
+        raise HTTPException(status_code=404, detail="Could not geocode address")
+    result = data["results"][0]
+    loc = result["geometry"]["location"]
+    return {
+        "lat": loc["lat"],
+        "lng": loc["lng"],
+        "formatted_address": result.get("formatted_address", address),
+        "place_id": result.get("place_id", ""),
+    }
+
+
+@api.get("/maps/places")
+async def search_places(query: str, user: dict = Depends(get_current_user)):
+    """Search for places using Google Places Text Search."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "https://maps.googleapis.com/maps/api/place/textsearch/json",
+            params={"query": query, "key": GOOGLE_MAPS_KEY},
+        )
+        data = resp.json()
+    if data.get("status") not in ("OK", "ZERO_RESULTS"):
+        raise HTTPException(status_code=502, detail=data.get("error_message", "Places API error"))
+    results = []
+    for r in (data.get("results") or [])[:8]:
+        loc = r.get("geometry", {}).get("location", {})
+        results.append({
+            "name": r.get("name", ""),
+            "address": r.get("formatted_address", ""),
+            "lat": loc.get("lat"),
+            "lng": loc.get("lng"),
+            "place_id": r.get("place_id", ""),
+            "rating": r.get("rating"),
+            "types": r.get("types", [])[:3],
+        })
+    return results
+
+
 class InquiryInput(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     email: EmailStr
