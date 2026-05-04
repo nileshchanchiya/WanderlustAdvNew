@@ -511,7 +511,13 @@ app.include_router(api)
 frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[frontend_url, "http://localhost:3000"],
+    allow_origins=[
+        frontend_url,
+        "http://localhost:3000",
+        "https://wanderlustadventure.in",
+        "https://www.wanderlustadventure.in",
+        "https://wanderlust-adventure-81e8b.web.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
