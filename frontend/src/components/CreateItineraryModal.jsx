@@ -1,8 +1,94 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import api, { formatApiError } from "@/lib/api";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Search, MapPin } from "lucide-react";
 
 const EMOJIS = ["✈️", "🗾", "🏝️", "🎫", "🏕️", "🏔️", "🛶", "🎤", "📅", "🧭"];
+
+/* ── Google Places Destination Search ── */
+function DestinationSearch({ value, onChange }) {
+  const [query, setQuery] = useState(value || "");
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [open, setOpen] = useState(false);
+  const debounceRef = useRef(null);
+  const wrapperRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const search = useCallback(async (q) => {
+    if (!q || q.length < 2) { setResults([]); return; }
+    setSearching(true);
+    try {
+      const { data } = await api.get("/maps/places", { params: { query: q } });
+      setResults(data || []);
+      setOpen(true);
+    } catch { setResults([]); }
+    finally { setSearching(false); }
+  }, []);
+
+  const onInput = (val) => {
+    setQuery(val);
+    onChange(val); // keep parent in sync for manual typing
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => search(val), 400);
+  };
+
+  const pick = (place) => {
+    const label = place.name + (place.address ? `, ${place.address}` : "");
+    setQuery(label);
+    onChange(label);
+    setOpen(false);
+  };
+
+  // Sync external value changes
+  useEffect(() => { setQuery(value || ""); }, [value]);
+
+  return (
+    <div className="relative" ref={wrapperRef}>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400 pointer-events-none" />
+        <input
+          value={query}
+          onChange={(e) => onInput(e.target.value)}
+          onFocus={() => results.length > 0 && setOpen(true)}
+          placeholder="Search destination..."
+          className="w-full bg-white border border-ink-200 rounded-md pl-9 pr-9 py-2.5 focus:ring-2 focus:ring-terracotta/20 focus:border-terracotta outline-none transition-all"
+          data-testid="itinerary-destination-input"
+        />
+        {searching && (
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-ink-400" />
+        )}
+      </div>
+
+      {open && results.length > 0 && (
+        <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-ink-200 rounded-lg shadow-xl max-h-56 overflow-y-auto">
+          {results.map((r, i) => (
+            <button
+              key={r.place_id || i}
+              type="button"
+              onClick={() => pick(r)}
+              className="w-full text-left px-3 py-2.5 hover:bg-ink-50 border-b border-ink-100 last:border-0 flex items-start gap-2.5"
+            >
+              <MapPin className="h-4 w-4 text-terracotta mt-0.5 flex-shrink-0" />
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-ink-900">{r.name}</div>
+                <div className="text-xs text-ink-500 truncate">{r.address}</div>
+                {r.rating && <div className="text-xs text-amber-600 mt-0.5">★ {r.rating}</div>}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CreateItineraryModal({ onClose, onCreated, initial }) {
   const [title, setTitle] = useState(initial?.title || "");
@@ -139,12 +225,9 @@ export default function CreateItineraryModal({ onClose, onCreated, initial }) {
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="label-caps mb-2 block">Destination / Location</label>
-              <input
+              <DestinationSearch
                 value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                placeholder="Kyoto, Japan"
-                className="w-full bg-white border border-ink-200 rounded-md px-3 py-2.5 focus:ring-2 focus:ring-terracotta/20 focus:border-terracotta outline-none transition-all"
-                data-testid="itinerary-destination-input"
+                onChange={setDestination}
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -243,3 +326,4 @@ export default function CreateItineraryModal({ onClose, onCreated, initial }) {
     </div>
   );
 }
+
