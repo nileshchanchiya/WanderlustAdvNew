@@ -258,7 +258,8 @@ async def register(data: RegisterInput, response: Response):
     access = create_access_token(uid, email)
     refresh = create_refresh_token(uid)
     set_auth_cookies(response, access, refresh)
-    return user_to_public({**doc, "_id": res.inserted_id})
+    user_data = user_to_public({**doc, "_id": res.inserted_id})
+    return {**user_data, "access_token": access, "refresh_token": refresh}
 
 
 @api.post("/auth/login")
@@ -296,7 +297,8 @@ async def login(data: LoginInput, request: Request, response: Response):
     access = create_access_token(uid, email)
     refresh = create_refresh_token(uid)
     set_auth_cookies(response, access, refresh)
-    return user_to_public(user)
+    user_data = user_to_public(user)
+    return {**user_data, "access_token": access, "refresh_token": refresh}
 
 
 @api.post("/auth/logout")
@@ -313,7 +315,14 @@ async def me(user: dict = Depends(get_current_user)):
 
 @api.post("/auth/refresh")
 async def refresh_token(request: Request, response: Response):
+    # Accept refresh token from cookie OR request body
     token = request.cookies.get("refresh_token")
+    if not token:
+        try:
+            body = await request.json()
+            token = body.get("refresh_token")
+        except Exception:
+            pass
     if not token:
         raise HTTPException(status_code=401, detail="No refresh token")
     try:
@@ -334,7 +343,7 @@ async def refresh_token(request: Request, response: Response):
             max_age=ACCESS_MIN * 60,
             path="/",
         )
-        return {"ok": True}
+        return {"ok": True, "access_token": access}
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Refresh token expired")
     except jwt.InvalidTokenError:
