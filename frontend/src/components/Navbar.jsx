@@ -18,8 +18,9 @@ export default function Navbar() {
   const [open, setOpen] = React.useState(false);
 
   const onLogout = async () => {
-    await logout();
-    navigate("/");
+    try { await logout(); } catch { /* ignore */ }
+    navigate("/", { replace: true });
+    window.location.reload();
   };
 
   return (

@@ -101,8 +101,23 @@ def set_auth_cookies(response: Response, access: str, refresh: str) -> None:
 
 
 def clear_auth_cookies(response: Response) -> None:
-    response.delete_cookie("access_token", path="/")
-    response.delete_cookie("refresh_token", path="/")
+    for name in ("access_token", "refresh_token"):
+        response.delete_cookie(
+            key=name,
+            path="/",
+            secure=True,
+            samesite="none",
+        )
+        # Belt-and-suspenders: also set an expired cookie with max_age=0
+        response.set_cookie(
+            key=name,
+            value="",
+            httponly=True,
+            secure=True,
+            samesite="none",
+            max_age=0,
+            path="/",
+        )
 
 
 def user_to_public(u: dict) -> dict:
