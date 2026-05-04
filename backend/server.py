@@ -234,16 +234,20 @@ async def register(data: RegisterInput, response: Response):
 @api.post("/auth/login")
 async def login(data: LoginInput, request: Request, response: Response):
     email = data.email.lower().strip()
-    ip = request.client.host if request.client else "unknown"
-    identifier = f"{ip}:{email}"
+    # Lock by email only (key stable behind load balancers / ingress IP pools).
+    identifier = f"email:{email}"
 
     # brute force check
-    attempts = await db.login_attempts.find_one({"identifier": identifier})
     now = datetime.now(timezone.utc)
+    attempts = await db.login_attempts.find_one({"identifier": identifier})
     if attempts and attempts.get("count", 0) >= BRUTE_LIMIT:
         locked_until = attempts.get("locked_until")
-        if locked_until and locked_until > now:
-            raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+        # Coerce naive datetimes (Mongo default) to UTC-aware for safe comparison.
+        if isinstance(locked_until, datetime):
+            if locked_until.tzinfo is None:
+                locked_until = locked_until.replace(tzinfo=timezone.utc)
+            if locked_until > now:
+                raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
 
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(data.password, user["password_hash"]):
@@ -266,7 +270,8 @@ async def login(data: LoginInput, request: Request, response: Response):
 
 
 @api.post("/auth/logout")
-async def logout(response: Response, _user: dict = Depends(get_current_user)):
+async def logout(response: Response):
+    # Logout always succeeds — clears cookies whether or not the access token is valid.
     clear_auth_cookies(response)
     return {"ok": True}
 

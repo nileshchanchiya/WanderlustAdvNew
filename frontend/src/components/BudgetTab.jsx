@@ -106,8 +106,8 @@ export default function BudgetTab({ itinerary, onUpdate }) {
               Add expenses to see the breakdown.
             </div>
           ) : (
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ width: "100%", height: 224 }}>
+              <ResponsiveContainer width="100%" height={224} minHeight={200}>
                 <PieChart>
                   <Pie
                     data={byCat}
