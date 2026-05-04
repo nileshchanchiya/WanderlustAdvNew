@@ -5,6 +5,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 import os
+import re
 import uuid
 import logging
 import secrets
@@ -37,6 +38,13 @@ api = APIRouter(prefix="/api")
 
 
 # ---------- Helpers ----------
+def make_slug(name: str) -> str:
+    s = name.lower().strip()
+    s = re.sub(r'[^a-z0-9\s-]', '', s)
+    s = re.sub(r'[\s-]+', '-', s).strip('-')
+    return s
+
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
@@ -410,6 +418,26 @@ class CustomDestinationInput(BaseModel):
     budget: Literal["budget", "mid", "luxury"] = "mid"
     image_url: str = Field(default="", max_length=500)
     notes: str = Field(default="", max_length=1000)
+    description: str = Field(default="", max_length=5000)
+    highlights: str = Field(default="", max_length=2000)
+    best_time: str = Field(default="", max_length=200)
+    duration: str = Field(default="", max_length=100)
+    price_from: str = Field(default="", max_length=50)
+
+
+class DestinationUpdate(BaseModel):
+    name: Optional[str] = None
+    region: Optional[Literal["international", "domestic"]] = None
+    tag: Optional[str] = None
+    theme: Optional[Literal["honeymoon", "family", "friends", "solo", "adventure", "luxury"]] = None
+    budget: Optional[Literal["budget", "mid", "luxury"]] = None
+    image_url: Optional[str] = None
+    notes: Optional[str] = None
+    description: Optional[str] = None
+    highlights: Optional[str] = None
+    best_time: Optional[str] = None
+    duration: Optional[str] = None
+    price_from: Optional[str] = None
 
 
 @api.get("/destinations")
@@ -420,16 +448,46 @@ async def list_destinations():
     return items
 
 
+@api.get("/destinations/{slug}")
+async def get_destination(slug: str):
+    doc = await db.destinations.find_one({"slug": slug}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Destination not found")
+    return doc
+
+
 @api.post("/destinations")
 async def create_destination(data: CustomDestinationInput, admin: dict = Depends(require_admin)):
+    slug = make_slug(data.name)
+    # ensure unique slug
+    existing = await db.destinations.find_one({"slug": slug})
+    if existing:
+        slug = f"{slug}-{str(uuid.uuid4())[:6]}"
     doc = {
         "id": str(uuid.uuid4()),
+        "slug": slug,
         "created_by": str(admin["_id"]),
         **data.model_dump(),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.destinations.insert_one(doc)
     doc.pop("_id", None)
+    return doc
+
+
+@api.put("/destinations/{destination_id}")
+async def update_destination(destination_id: str, data: DestinationUpdate, admin: dict = Depends(require_admin)):
+    existing = await db.destinations.find_one({"id": destination_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Destination not found")
+    updates: Dict[str, Any] = {
+        k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None
+    }
+    # update slug if name changed
+    if "name" in updates:
+        updates["slug"] = make_slug(updates["name"])
+    await db.destinations.update_one({"id": destination_id}, {"$set": updates})
+    doc = await db.destinations.find_one({"id": destination_id}, {"_id": 0})
     return doc
 
 
@@ -472,9 +530,10 @@ async def on_startup():
     await db.itineraries.create_index([("user_id", 1), ("created_at", -1)])
     await db.itineraries.create_index("id", unique=True)
     await db.destinations.create_index("id", unique=True)
+    await db.destinations.create_index("slug", unique=True)
     await db.destinations.create_index([("created_at", -1)])
 
-    admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com").lower()
+    admin_email = os.environ.get("ADMIN_EMAIL", "info@wanderlustadventure.in").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
     existing = await db.users.find_one({"email": admin_email})
     if existing is None:

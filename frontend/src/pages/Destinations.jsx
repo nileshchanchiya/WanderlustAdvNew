@@ -10,18 +10,18 @@ import { toast } from "sonner";
 import { MapPin, ArrowUpRight, Plus, Trash2, Sparkles } from "lucide-react";
 
 const DESTS = [
-  { region: "international", name: "Dubai", tag: "Luxury · Skyline", img: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1200&q=80", budget: "luxury", theme: "family" },
-  { region: "international", name: "Bali", tag: "Beaches · Culture", img: "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "honeymoon" },
-  { region: "international", name: "Europe", tag: "Classic · Heritage", img: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80", budget: "luxury", theme: "family" },
-  { region: "international", name: "Maldives", tag: "Islands · Honeymoon", img: "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=1200&q=80", budget: "luxury", theme: "honeymoon" },
-  { region: "international", name: "Thailand", tag: "Beach · Adventure", img: "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "friends" },
-  { region: "international", name: "Singapore", tag: "City · Family", img: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "family" },
-  { region: "domestic", name: "Goa", tag: "Beach · Nightlife", img: "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=1200&q=80", budget: "budget", theme: "friends" },
-  { region: "domestic", name: "Manali", tag: "Mountains · Adventure", img: "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&w=1200&q=80", budget: "budget", theme: "friends" },
-  { region: "domestic", name: "Kashmir", tag: "Snow · Serenity", img: "https://images.unsplash.com/photo-1595815771614-ade9d652a65d?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "honeymoon" },
-  { region: "domestic", name: "Kerala", tag: "Backwaters · Nature", img: "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "family" },
-  { region: "domestic", name: "Ladakh", tag: "High Altitude · Biking", img: "https://images.unsplash.com/photo-1589556264800-08ae9e129a8c?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "friends" },
-  { region: "domestic", name: "Rajasthan", tag: "Royal · Culture", img: "https://images.unsplash.com/photo-1477587458883-47145ed94245?auto=format&fit=crop&w=1200&q=80", budget: "luxury", theme: "family" },
+  { region: "international", name: "Dubai", slug: "dubai", tag: "Luxury · Skyline", img: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1200&q=80", budget: "luxury", theme: "family" },
+  { region: "international", name: "Bali", slug: "bali", tag: "Beaches · Culture", img: "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "honeymoon" },
+  { region: "international", name: "Europe", slug: "europe", tag: "Classic · Heritage", img: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80", budget: "luxury", theme: "family" },
+  { region: "international", name: "Maldives", slug: "maldives", tag: "Islands · Honeymoon", img: "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=1200&q=80", budget: "luxury", theme: "honeymoon" },
+  { region: "international", name: "Thailand", slug: "thailand", tag: "Beach · Adventure", img: "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "friends" },
+  { region: "international", name: "Singapore", slug: "singapore", tag: "City · Family", img: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "family" },
+  { region: "domestic", name: "Goa", slug: "goa", tag: "Beach · Nightlife", img: "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=1200&q=80", budget: "budget", theme: "friends" },
+  { region: "domestic", name: "Manali", slug: "manali", tag: "Mountains · Adventure", img: "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&w=1200&q=80", budget: "budget", theme: "friends" },
+  { region: "domestic", name: "Kashmir", slug: "kashmir", tag: "Snow · Serenity", img: "https://images.unsplash.com/photo-1595815771614-ade9d652a65d?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "honeymoon" },
+  { region: "domestic", name: "Kerala", slug: "kerala", tag: "Backwaters · Nature", img: "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "family" },
+  { region: "domestic", name: "Ladakh", slug: "ladakh", tag: "High Altitude · Biking", img: "https://images.unsplash.com/photo-1589556264800-08ae9e129a8c?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "friends" },
+  { region: "domestic", name: "Rajasthan", slug: "rajasthan", tag: "Royal · Culture", img: "https://images.unsplash.com/photo-1477587458883-47145ed94245?auto=format&fit=crop&w=1200&q=80", budget: "luxury", theme: "family" },
 ];
 
 const THEMES = [
@@ -88,6 +88,7 @@ export default function Destinations() {
     () =>
       customs.map((c) => ({
         id: c.id,
+        slug: c.slug || c.id,
         region: c.region,
         name: c.name,
         tag: c.tag || c.theme || "Custom",
@@ -191,7 +192,7 @@ export default function Destinations() {
 }
 
 function DestCard({ d, onDelete, isAdmin }) {
-  const href = d.custom ? null : "/contact";
+  const slug = d.slug || d.name.toLowerCase().replace(/\s+/g, "-");
   const Inner = (
     <>
       <div className="aspect-[4/5] overflow-hidden">
@@ -232,7 +233,7 @@ function DestCard({ d, onDelete, isAdmin }) {
         </div>
         <div className="font-display text-3xl mt-1 leading-none">{d.name}</div>
         <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-white/80 group-hover:text-gold font-label uppercase tracking-wider font-semibold transition-colors">
-          Plan this trip <ArrowUpRight className="h-3.5 w-3.5" />
+          View details <ArrowUpRight className="h-3.5 w-3.5" />
         </div>
       </div>
     </>
@@ -240,15 +241,8 @@ function DestCard({ d, onDelete, isAdmin }) {
   const className =
     "group relative overflow-hidden rounded-2xl border border-fog/60 bg-white block shadow-lift hover:shadow-hover transition-all duration-300 hover:-translate-y-1";
 
-  if (href) {
-    return (
-      <Link to={href} className={className} data-testid={`dest-${d.name.toLowerCase().replace(/\s+/g, "-")}`}>
-        {Inner}
-      </Link>
-    );
-  }
   return (
-    <Link to="/contact" className={className} data-testid={`dest-custom-${d.id}`}>
+    <Link to={`/destinations/${slug}`} className={className} data-testid={`dest-${slug}`}>
       {Inner}
     </Link>
   );

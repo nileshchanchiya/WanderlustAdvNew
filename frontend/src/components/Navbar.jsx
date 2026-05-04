@@ -1,7 +1,8 @@
 import React from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { Plane, LogOut, Menu, X } from "lucide-react";
+import { LogOut, Menu, X } from "lucide-react";
+import logoImg from "@/assets/logo.svg";
 
 const PUBLIC_LINKS = [
   { to: "/", label: "Home" },
@@ -24,18 +25,8 @@ export default function Navbar() {
   return (
     <header className="border-b border-fog/50 bg-white/95 backdrop-blur-md sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[72px] flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3" data-testid="nav-logo">
-          <span className="h-10 w-10 rounded-full bg-ocean text-gold grid place-items-center shadow-lift">
-            <Plane className="h-4 w-4 -rotate-12" strokeWidth={2} />
-          </span>
-          <span className="flex flex-col leading-none">
-            <span className="font-display text-[22px] font-bold tracking-tight text-ocean">
-              Wanderlust
-            </span>
-            <span className="font-label text-[10px] tracking-[0.22em] uppercase text-driftwood font-semibold -mt-0.5">
-              Adventure
-            </span>
-          </span>
+        <Link to="/" className="flex items-center" data-testid="nav-logo">
+          <img src={logoImg} alt="Wanderlust Adventure" className="h-24 w-auto" />
         </Link>
 
         <nav className="hidden lg:flex items-center gap-1">
