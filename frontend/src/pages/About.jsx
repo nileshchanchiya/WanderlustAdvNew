@@ -4,6 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Seo from "@/components/Seo";
 import { ArrowUpRight, Award, Heart, Target, Eye } from "lucide-react";
+import logoImg from "@/assets/logo.svg";
 
 export default function About() {
   return (
@@ -25,6 +26,7 @@ export default function About() {
           />
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
+          <img src={logoImg} alt="Wanderlust Adventure" className="h-20 sm:h-24 w-auto mb-8" />
           <div className="label-caps text-gold-ink">Who we are</div>
           <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl font-normal text-navy mt-5 leading-[1.02] tracking-tight max-w-4xl">
             A travel agency <em className="text-gold">built around you.</em>
