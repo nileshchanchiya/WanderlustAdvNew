@@ -128,6 +128,12 @@ async def get_current_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+async def require_admin(user: dict = Depends(get_current_user)) -> dict:
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+    return user
+
+
 # ---------- Schemas ----------
 class RegisterInput(BaseModel):
     email: EmailStr
@@ -394,7 +400,7 @@ async def delete_itinerary(itinerary_id: str, user: dict = Depends(get_current_u
     return {"ok": True}
 
 
-# ---------- Custom Destinations ----------
+# ---------- Destinations (admin-managed, public read) ----------
 class CustomDestinationInput(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     region: Literal["international", "domestic"] = "international"
@@ -406,31 +412,29 @@ class CustomDestinationInput(BaseModel):
 
 
 @api.get("/destinations")
-async def list_destinations(user: dict = Depends(get_current_user)):
-    uid = str(user["_id"])
-    cursor = db.custom_destinations.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1)
+async def list_destinations():
+    # Public — any visitor can see admin-curated destinations.
+    cursor = db.destinations.find({}, {"_id": 0}).sort("created_at", -1)
     items = await cursor.to_list(length=500)
     return items
 
 
 @api.post("/destinations")
-async def create_destination(data: CustomDestinationInput, user: dict = Depends(get_current_user)):
-    uid = str(user["_id"])
+async def create_destination(data: CustomDestinationInput, admin: dict = Depends(require_admin)):
     doc = {
         "id": str(uuid.uuid4()),
-        "user_id": uid,
+        "created_by": str(admin["_id"]),
         **data.model_dump(),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    await db.custom_destinations.insert_one(doc)
+    await db.destinations.insert_one(doc)
     doc.pop("_id", None)
     return doc
 
 
 @api.delete("/destinations/{destination_id}")
-async def delete_destination(destination_id: str, user: dict = Depends(get_current_user)):
-    uid = str(user["_id"])
-    res = await db.custom_destinations.delete_one({"id": destination_id, "user_id": uid})
+async def delete_destination(destination_id: str, admin: dict = Depends(require_admin)):
+    res = await db.destinations.delete_one({"id": destination_id})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Destination not found")
     return {"ok": True}
@@ -466,8 +470,8 @@ async def on_startup():
     await db.login_attempts.create_index("identifier")
     await db.itineraries.create_index([("user_id", 1), ("created_at", -1)])
     await db.itineraries.create_index("id", unique=True)
-    await db.custom_destinations.create_index([("user_id", 1), ("created_at", -1)])
-    await db.custom_destinations.create_index("id", unique=True)
+    await db.destinations.create_index("id", unique=True)
+    await db.destinations.create_index([("created_at", -1)])
 
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
@@ -477,16 +481,16 @@ async def on_startup():
             {
                 "email": admin_email,
                 "password_hash": hash_password(admin_password),
-                "name": "Admin",
+                "name": "Wanderlust Admin",
                 "role": "admin",
                 "created_at": datetime.now(timezone.utc),
             }
         )
-    elif not verify_password(admin_password, existing["password_hash"]):
-        await db.users.update_one(
-            {"email": admin_email},
-            {"$set": {"password_hash": hash_password(admin_password)}},
-        )
+    else:
+        updates = {"role": "admin"}
+        if not verify_password(admin_password, existing["password_hash"]):
+            updates["password_hash"] = hash_password(admin_password)
+        await db.users.update_one({"email": admin_email}, {"$set": updates})
 
 
 @app.on_event("shutdown")

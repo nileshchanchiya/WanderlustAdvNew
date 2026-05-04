@@ -52,7 +52,20 @@ Create a fully functional production-ready itinerary app.
 - ✅ Elevation scale (lift/float/hover/modal), sunset gradient CTAs, ocean gradient nav/footer
 - ✅ Pill-shaped CTAs with Montserrat uppercase labels; destination cards with shadow lift + duration chip + From price
 
-### v4 — SEO + Custom destinations (current)
+### v4 — SEO + Custom destinations
+- ✅ `react-helmet-async` installed; reusable `<Seo />` component injects title, description, canonical, OG/Twitter/geo meta
+
+### v5 — Admin-only destinations + pinned admin identity (current)
+- ✅ Admin pinned to `info@wanderlustadventure.in` / `WanAdmin@1983` (auto-seeded and role synced on every startup)
+- ✅ Destinations endpoints restructured as **public read + admin write**:
+  - `GET /api/destinations` — public, visible to anonymous visitors
+  - `POST /api/destinations` — admin-only (`require_admin` dependency → 403 for non-admins)
+  - `DELETE /api/destinations/{id}` — admin-only
+- ✅ New `destinations` collection (replaces the per-user `custom_destinations`); admin-added entries are visible to every visitor
+- ✅ Regular users remain fully unrestricted on their own itineraries (create/edit/delete)
+- ✅ `/destinations` UI gates the Add button + hover-delete behind `user.role === "admin"`; regular users see the grid read-only
+- ✅ Removed "Sign in to add" CTA for anon users (they just see the destinations)
+- ✅ Login demo credentials prompt removed; `test_credentials.md` updated
 - ✅ `react-helmet-async` installed; reusable `<Seo />` component injects title, description, canonical, OG/Twitter/geo meta
 - ✅ `businessSchema` (TravelAgency + LocalBusiness) + `faqSchema` + `breadcrumbSchema` helpers
 - ✅ Home renders TravelAgency+LocalBusiness and FAQPage JSON-LD (2 scripts)

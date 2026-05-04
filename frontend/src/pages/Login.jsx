@@ -110,9 +110,6 @@ export default function Login() {
               Create one
             </Link>
           </p>
-          <p className="mt-6 text-xs text-ink-500 font-mono">
-            Demo admin · admin@itinera.app · admin123
-          </p>
         </div>
       </div>
     </div>

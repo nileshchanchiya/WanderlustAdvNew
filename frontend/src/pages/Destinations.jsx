@@ -52,35 +52,32 @@ export default function Destinations() {
   const [customs, setCustoms] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
 
-  const loggedIn = user && user !== false && user !== null;
+  const isAdmin = user && user !== false && user !== null && user.role === "admin";
 
   useEffect(() => {
-    if (!loggedIn) {
-      setCustoms([]);
-      return;
-    }
     (async () => {
       try {
         const { data } = await api.get("/destinations");
         setCustoms(data);
       } catch (e) {
-        toast.error(formatApiError(e));
+        // public endpoint — quiet fail so anon visitors don't see toast
+        console.error(e);
       }
     })();
-  }, [loggedIn]);
+  }, []);
 
   const onCreated = (d) => {
     setCustoms((prev) => [d, ...prev]);
     setShowAdd(false);
-    toast.success("Custom destination saved");
+    toast.success("Destination published");
   };
 
   const onDelete = async (id) => {
-    if (!window.confirm("Delete this destination?")) return;
+    if (!window.confirm("Delete this destination? It will disappear for all visitors.")) return;
     try {
       await api.delete(`/destinations/${id}`);
       setCustoms((prev) => prev.filter((c) => c.id !== id));
-      toast.success("Removed");
+      toast.success("Destination removed");
     } catch (e) {
       toast.error(formatApiError(e));
     }
@@ -143,7 +140,7 @@ export default function Destinations() {
           <FilterGroup label="Budget" value={budget} onChange={setBudget} options={BUDGETS} testid="filter-budget" />
           <div className="ml-auto flex items-center gap-4">
             <div className="text-sm text-driftwood font-mono">{filtered.length} results</div>
-            {loggedIn ? (
+            {isAdmin && (
               <button
                 onClick={() => setShowAdd(true)}
                 className="inline-flex items-center gap-2 bg-sunset text-charcoal rounded-full px-4 py-2 font-label text-xs font-semibold uppercase tracking-wider shadow-lift hover:shadow-float transition-all"
@@ -152,22 +149,13 @@ export default function Destinations() {
                 <Plus className="h-3.5 w-3.5" strokeWidth={2.2} />
                 Add Destination
               </button>
-            ) : (
-              <Link
-                to="/login"
-                className="inline-flex items-center gap-2 border border-ocean/30 text-ocean hover:bg-ocean hover:text-white rounded-full px-4 py-2 font-label text-xs font-semibold uppercase tracking-wider transition-colors"
-                data-testid="add-destination-login"
-              >
-                <Plus className="h-3.5 w-3.5" strokeWidth={2.2} />
-                Sign in to add
-              </Link>
             )}
           </div>
         </div>
-        {!loggedIn && (
+        {isAdmin && (
           <p className="mt-3 text-xs text-driftwood flex items-center gap-1.5">
             <Sparkles className="h-3.5 w-3.5 text-gold" strokeWidth={1.5} />
-            Sign in to curate your own dream-list — add bucket-list places with notes only you can see.
+            Admin mode — destinations you add are visible to every visitor.
           </p>
         )}
       </section>
@@ -187,13 +175,13 @@ export default function Destinations() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((d) => (
-              <DestCard key={d.id || d.name} d={d} onDelete={onDelete} />
+              <DestCard key={d.id || d.name} d={d} onDelete={onDelete} isAdmin={isAdmin} />
             ))}
           </div>
         )}
       </section>
 
-      {showAdd && (
+      {showAdd && isAdmin && (
         <AddDestinationModal onClose={() => setShowAdd(false)} onCreated={onCreated} />
       )}
 
@@ -202,7 +190,7 @@ export default function Destinations() {
   );
 }
 
-function DestCard({ d, onDelete }) {
+function DestCard({ d, onDelete, isAdmin }) {
   const href = d.custom ? null : "/contact";
   const Inner = (
     <>
@@ -217,13 +205,13 @@ function DestCard({ d, onDelete }) {
       <div className="absolute inset-0 bg-gradient-to-t from-ocean-deep/85 via-ocean-deep/10 to-transparent" />
       <div className="absolute top-4 left-4 flex gap-1.5">
         {d.custom ? (
-          <Badge variant="gold">Custom</Badge>
+          <Badge variant="gold">New</Badge>
         ) : (
           <Badge>{d.region === "international" ? "International" : "Domestic"}</Badge>
         )}
         {!d.custom && <Badge variant="gold">{capitalize(d.budget)}</Badge>}
       </div>
-      {d.custom && (
+      {d.custom && isAdmin && (
         <button
           onClick={(e) => {
             e.preventDefault();
@@ -244,7 +232,7 @@ function DestCard({ d, onDelete }) {
         </div>
         <div className="font-display text-3xl mt-1 leading-none">{d.name}</div>
         <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-white/80 group-hover:text-gold font-label uppercase tracking-wider font-semibold transition-colors">
-          {d.custom ? "Plan this trip" : "Plan this trip"} <ArrowUpRight className="h-3.5 w-3.5" />
+          Plan this trip <ArrowUpRight className="h-3.5 w-3.5" />
         </div>
       </div>
     </>
