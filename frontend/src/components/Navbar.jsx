@@ -23,11 +23,14 @@ export default function Navbar() {
     window.location.reload();
   };
 
+  // Treat null (loading) the same as false (logged out) for UI rendering
+  const isLoggedIn = user && user !== false && user !== null;
+
   return (
     <header className="border-b border-fog/50 bg-white/95 backdrop-blur-md sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[72px] flex items-center justify-between">
-        <Link to="/" className="flex items-center" data-testid="nav-logo">
-          <img src={logoImg} alt="Wanderlust Adventure" className="h-24 w-auto" />
+        <Link to="/" className="flex items-center flex-shrink-0" data-testid="nav-logo">
+          <img src={logoImg} alt="Wanderlust Adventure" className="h-12 sm:h-14 w-auto" />
         </Link>
 
         <nav className="hidden lg:flex items-center gap-1">
@@ -51,7 +54,7 @@ export default function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
-          {user && user !== false ? (
+          {isLoggedIn ? (
             <>
               <Link
                 to="/dashboard"
@@ -87,7 +90,7 @@ export default function Navbar() {
               </Link>
               <Link
                 to="/signup"
-                className="inline-flex items-center gap-1.5 text-[13px] rounded-full bg-sunset text-charcoal px-5 py-2.5 font-label font-semibold uppercase tracking-wider shadow-lift hover:shadow-float transition-all"
+                className="inline-flex items-center gap-1.5 text-[13px] rounded-full bg-sunset text-charcoal px-4 sm:px-5 py-2 sm:py-2.5 font-label font-semibold uppercase tracking-wider shadow-lift hover:shadow-float transition-all whitespace-nowrap"
                 data-testid="nav-signup-link"
               >
                 Plan My Trip
@@ -123,7 +126,7 @@ export default function Navbar() {
                 {l.label}
               </NavLink>
             ))}
-            {user && user !== false ? (
+            {isLoggedIn ? (
               <Link
                 to="/dashboard"
                 onClick={() => setOpen(false)}
