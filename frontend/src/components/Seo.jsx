@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 
 const SITE_URL = process.env.REACT_APP_SITE_URL || "https://wanderlustadventure.in";
 const SITE_NAME = "Wanderlust Adventure";
-const DEFAULT_OG = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1200&q=80";
+const DEFAULT_OG = "https://wanderlustadventure.in/og-image.png";
 
 /**
  * SEO / Helmet wrapper. Pass title, description, path (for canonical),
