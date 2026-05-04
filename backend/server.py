@@ -1,89 +1,445 @@
-from fastapi import FastAPI, APIRouter
 from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
-import os
-import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
-import uuid
-from datetime import datetime, timezone
-
 
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+load_dotenv(ROOT_DIR / ".env")
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
+import os
+import uuid
+import logging
+import secrets
+from datetime import datetime, timezone, timedelta
+from typing import List, Optional, Dict, Any, Literal
+
+import bcrypt
+import jwt
+from bson import ObjectId
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends
+from starlette.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+from pydantic import BaseModel, Field, EmailStr
+
+
+# ---------- Config ----------
+JWT_ALGORITHM = "HS256"
+ACCESS_MIN = 15
+REFRESH_DAYS = 7
+BRUTE_LIMIT = 5
+BRUTE_WINDOW_MIN = 15
+
+mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[os.environ["DB_NAME"]]
 
-# Create the main app without a prefix
-app = FastAPI()
-
-# Create a router with the /api prefix
-api_router = APIRouter(prefix="/api")
+app = FastAPI(title="Itinera API")
+api = APIRouter(prefix="/api")
 
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
+# ---------- Helpers ----------
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
+
+
+def get_jwt_secret() -> str:
+    return os.environ["JWT_SECRET"]
+
+
+def create_access_token(user_id: str, email: str) -> str:
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_MIN),
+        "type": "access",
+    }
+    return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
+
+
+def create_refresh_token(user_id: str) -> str:
+    payload = {
+        "sub": user_id,
+        "exp": datetime.now(timezone.utc) + timedelta(days=REFRESH_DAYS),
+        "type": "refresh",
+    }
+    return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
+
+
+def set_auth_cookies(response: Response, access: str, refresh: str) -> None:
+    response.set_cookie(
+        key="access_token",
+        value=access,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=ACCESS_MIN * 60,
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=REFRESH_DAYS * 24 * 3600,
+        path="/",
+    )
+
+
+def clear_auth_cookies(response: Response) -> None:
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/")
+
+
+def user_to_public(u: dict) -> dict:
+    return {
+        "id": str(u["_id"]) if "_id" in u else u.get("id"),
+        "email": u["email"],
+        "name": u.get("name", ""),
+        "role": u.get("role", "user"),
+        "created_at": u.get("created_at").isoformat() if isinstance(u.get("created_at"), datetime) else u.get("created_at"),
+    }
+
+
+async def get_current_user(request: Request) -> dict:
+    token = request.cookies.get("access_token")
+    if not token:
+        header = request.headers.get("Authorization", "")
+        if header.startswith("Bearer "):
+            token = header[7:]
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "access":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+# ---------- Schemas ----------
+class RegisterInput(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=128)
+    name: str = Field(min_length=1, max_length=80)
+
+
+class LoginInput(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class TimelineEvent(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    day_index: int = 0
+    time: str = ""  # HH:MM
+    title: str
+    location: str = ""
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    notes: str = ""
+    category: str = "activity"  # activity|food|transport|stay|meeting
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
 
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
+class ExpenseItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    category: str = "other"
+    description: str
+    amount: float = 0.0
+    currency: str = "USD"
+    date: Optional[str] = None
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
+class PackingItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    text: str
+    category: str = "general"
+    packed: bool = False
 
-# Include the router in the main app
-app.include_router(api_router)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+class ItineraryBase(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    type: Literal["travel", "event", "generic"] = "travel"
+    destination: str = ""
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    description: str = ""
+    cover_emoji: str = ""
+    budget_limit: float = 0.0
+    currency: str = "USD"
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+
+class ItineraryCreate(ItineraryBase):
+    pass
+
+
+class ItineraryUpdate(BaseModel):
+    title: Optional[str] = None
+    type: Optional[Literal["travel", "event", "generic"]] = None
+    destination: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    description: Optional[str] = None
+    cover_emoji: Optional[str] = None
+    budget_limit: Optional[float] = None
+    currency: Optional[str] = None
+    events: Optional[List[TimelineEvent]] = None
+    expenses: Optional[List[ExpenseItem]] = None
+    packing: Optional[List[PackingItem]] = None
+
+
+class Itinerary(ItineraryBase):
+    id: str
+    user_id: str
+    events: List[TimelineEvent] = []
+    expenses: List[ExpenseItem] = []
+    packing: List[PackingItem] = []
+    created_at: str
+    updated_at: str
+
+
+# ---------- Auth Endpoints ----------
+@api.post("/auth/register")
+async def register(data: RegisterInput, response: Response):
+    email = data.email.lower().strip()
+    existing = await db.users.find_one({"email": email})
+    if existing:
+        raise HTTPException(status_code=409, detail="Email already registered")
+    doc = {
+        "email": email,
+        "password_hash": hash_password(data.password),
+        "name": data.name.strip(),
+        "role": "user",
+        "created_at": datetime.now(timezone.utc),
+    }
+    res = await db.users.insert_one(doc)
+    uid = str(res.inserted_id)
+    access = create_access_token(uid, email)
+    refresh = create_refresh_token(uid)
+    set_auth_cookies(response, access, refresh)
+    return user_to_public({**doc, "_id": res.inserted_id})
+
+
+@api.post("/auth/login")
+async def login(data: LoginInput, request: Request, response: Response):
+    email = data.email.lower().strip()
+    ip = request.client.host if request.client else "unknown"
+    identifier = f"{ip}:{email}"
+
+    # brute force check
+    attempts = await db.login_attempts.find_one({"identifier": identifier})
+    now = datetime.now(timezone.utc)
+    if attempts and attempts.get("count", 0) >= BRUTE_LIMIT:
+        locked_until = attempts.get("locked_until")
+        if locked_until and locked_until > now:
+            raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+
+    user = await db.users.find_one({"email": email})
+    if not user or not verify_password(data.password, user["password_hash"]):
+        await db.login_attempts.update_one(
+            {"identifier": identifier},
+            {
+                "$inc": {"count": 1},
+                "$set": {"locked_until": now + timedelta(minutes=BRUTE_WINDOW_MIN)},
+            },
+            upsert=True,
+        )
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    await db.login_attempts.delete_one({"identifier": identifier})
+    uid = str(user["_id"])
+    access = create_access_token(uid, email)
+    refresh = create_refresh_token(uid)
+    set_auth_cookies(response, access, refresh)
+    return user_to_public(user)
+
+
+@api.post("/auth/logout")
+async def logout(response: Response, _user: dict = Depends(get_current_user)):
+    clear_auth_cookies(response)
+    return {"ok": True}
+
+
+@api.get("/auth/me")
+async def me(user: dict = Depends(get_current_user)):
+    return user_to_public(user)
+
+
+@api.post("/auth/refresh")
+async def refresh_token(request: Request, response: Response):
+    token = request.cookies.get("refresh_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="No refresh token")
+    try:
+        payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        uid = payload["sub"]
+        user = await db.users.find_one({"_id": ObjectId(uid)})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        access = create_access_token(uid, user["email"])
+        response.set_cookie(
+            key="access_token",
+            value=access,
+            httponly=True,
+            secure=True,
+            samesite="none",
+            max_age=ACCESS_MIN * 60,
+            path="/",
+        )
+        return {"ok": True}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+
+# ---------- Itinerary Endpoints ----------
+def _serialize_itinerary(doc: dict) -> dict:
+    doc = {**doc}
+    doc.pop("_id", None)
+    ca = doc.get("created_at")
+    ua = doc.get("updated_at")
+    if isinstance(ca, datetime):
+        doc["created_at"] = ca.isoformat()
+    if isinstance(ua, datetime):
+        doc["updated_at"] = ua.isoformat()
+    return doc
+
+
+@api.get("/itineraries")
+async def list_itineraries(user: dict = Depends(get_current_user)):
+    uid = str(user["_id"])
+    cursor = db.itineraries.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1)
+    items = await cursor.to_list(length=500)
+    for it in items:
+        if isinstance(it.get("created_at"), datetime):
+            it["created_at"] = it["created_at"].isoformat()
+        if isinstance(it.get("updated_at"), datetime):
+            it["updated_at"] = it["updated_at"].isoformat()
+    return items
+
+
+@api.post("/itineraries")
+async def create_itinerary(data: ItineraryCreate, user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    uid = str(user["_id"])
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": uid,
+        **data.model_dump(),
+        "events": [],
+        "expenses": [],
+        "packing": [],
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat(),
+    }
+    await db.itineraries.insert_one(doc)
+    return _serialize_itinerary(doc)
+
+
+@api.get("/itineraries/{itinerary_id}")
+async def get_itinerary(itinerary_id: str, user: dict = Depends(get_current_user)):
+    uid = str(user["_id"])
+    doc = await db.itineraries.find_one({"id": itinerary_id, "user_id": uid}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Itinerary not found")
+    if isinstance(doc.get("created_at"), datetime):
+        doc["created_at"] = doc["created_at"].isoformat()
+    if isinstance(doc.get("updated_at"), datetime):
+        doc["updated_at"] = doc["updated_at"].isoformat()
+    return doc
+
+
+@api.put("/itineraries/{itinerary_id}")
+async def update_itinerary(
+    itinerary_id: str, data: ItineraryUpdate, user: dict = Depends(get_current_user)
+):
+    uid = str(user["_id"])
+    existing = await db.itineraries.find_one({"id": itinerary_id, "user_id": uid})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Itinerary not found")
+    updates: Dict[str, Any] = {
+        k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None
+    }
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.itineraries.update_one({"id": itinerary_id, "user_id": uid}, {"$set": updates})
+    doc = await db.itineraries.find_one({"id": itinerary_id, "user_id": uid}, {"_id": 0})
+    return doc
+
+
+@api.delete("/itineraries/{itinerary_id}")
+async def delete_itinerary(itinerary_id: str, user: dict = Depends(get_current_user)):
+    uid = str(user["_id"])
+    res = await db.itineraries.delete_one({"id": itinerary_id, "user_id": uid})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Itinerary not found")
+    return {"ok": True}
+
+
+# ---------- Startup ----------
+@app.on_event("startup")
+async def on_startup():
+    await db.users.create_index("email", unique=True)
+    await db.login_attempts.create_index("identifier")
+    await db.itineraries.create_index([("user_id", 1), ("created_at", -1)])
+    await db.itineraries.create_index("id", unique=True)
+
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com").lower()
+    admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
+    existing = await db.users.find_one({"email": admin_email})
+    if existing is None:
+        await db.users.insert_one(
+            {
+                "email": admin_email,
+                "password_hash": hash_password(admin_password),
+                "name": "Admin",
+                "role": "admin",
+                "created_at": datetime.now(timezone.utc),
+            }
+        )
+    elif not verify_password(admin_password, existing["password_hash"]):
+        await db.users.update_one(
+            {"email": admin_email},
+            {"$set": {"password_hash": hash_password(admin_password)}},
+        )
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+
+# ---------- Health ----------
+@api.get("/")
+async def root():
+    return {"ok": True, "service": "itinera-api"}
+
+
+# mount router
+app.include_router(api)
+
+# CORS
+frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[frontend_url, "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
