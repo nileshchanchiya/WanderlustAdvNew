@@ -1,0 +1,137 @@
+{
+  "theme": "light",
+  "archetype": "4 (Swiss & High-Contrast) / Minimal & Clean",
+  "design_philosophy": "Linear/Notion-like aesthetic. Emphasizes structure, typography-driven hierarchy, and generous negative space. Cardless or flat-bordered UI without drop shadows to keep the interface highly functional and editorial. The accent color evokes travel and earthiness without resorting to standard tech blues or purples.",
+  "typography": {
+    "fonts": {
+      "heading": "Cabinet Grotesk",
+      "body": "Satoshi",
+      "mono": "JetBrains Mono"
+    },
+    "rules": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tighter font-bold",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight font-semibold",
+      "h3": "text-xl sm:text-2xl tracking-tight font-medium",
+      "body": "text-base leading-relaxed text-neutral-600",
+      "small_caps": "text-xs tracking-[0.2em] uppercase font-semibold text-neutral-500",
+      "mono_numbers": "font-mono tracking-tight text-neutral-900"
+    },
+    "forbidden_fonts": [
+      "Inter",
+      "Space Grotesk",
+      "Roboto",
+      "Open Sans"
+    ],
+    "setup_instructions": "Import Cabinet Grotesk and Satoshi via Fontshare or local assets. Import JetBrains Mono via Google Fonts."
+  },
+  "color_palette": {
+    "background": "#FCFCFB",
+    "surface": "#FFFFFF",
+    "primary": "#DE6242",
+    "primary_hover": "#C85335",
+    "text_main": "#171717",
+    "text_muted": "#737373",
+    "border": "#E5E5E5",
+    "border_focus": "#DE6242",
+    "success": "#34A853",
+    "error": "#EF4444",
+    "forbidden_colors": [
+      "#9D4CDD",
+      "#1B93A4",
+      "Purple gradients"
+    ]
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous spacing. Containers with borders must have internal padding (p-6 or p-8) to prevent text collision. Use a 12-column bento grid for the dashboard layout.",
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "section_gap": "py-24 sm:py-32",
+    "component_gap": "gap-6 or gap-8",
+    "radius": {
+      "card": "rounded-xl",
+      "button": "rounded-lg",
+      "input": "rounded-md"
+    },
+    "shadows": "DO NOT use drop shadows for depth. Rely on 1px borders (border border-neutral-200) and white backgrounds to separate elements."
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#DE6242] text-white hover:bg-[#C85335] rounded-lg px-6 py-2.5 font-medium transition-colors",
+      "secondary": "bg-white border border-neutral-200 text-neutral-900 hover:bg-neutral-50 rounded-lg px-6 py-2.5 font-medium transition-colors",
+      "ghost": "hover:bg-neutral-100 text-neutral-600 hover:text-neutral-900 rounded-lg px-4 py-2 transition-colors"
+    },
+    "cards": {
+      "default": "bg-white border border-neutral-200 rounded-xl p-6 shadow-none",
+      "interactive": "hover:border-[#DE6242] transition-colors cursor-pointer"
+    },
+    "inputs": {
+      "default": "bg-white border border-neutral-200 rounded-md px-3 py-2 focus:ring-2 focus:ring-[#DE6242]/20 focus:border-[#DE6242] outline-none transition-all shadow-sm"
+    },
+    "timeline_itinerary": {
+      "container": "relative border-l border-neutral-200 ml-4 md:ml-6",
+      "item": "mb-8 pl-8 relative",
+      "dot": "absolute w-3 h-3 bg-[#DE6242] rounded-full -left-[6.5px] top-1.5 ring-4 ring-white",
+      "time": "font-mono text-sm text-neutral-500 mb-1 block",
+      "title": "text-lg font-semibold text-neutral-900",
+      "description": "text-neutral-600 mt-2"
+    },
+    "budget_tracker": {
+      "table": "w-full text-left border-collapse",
+      "header_cell": "border-b border-neutral-200 py-3 text-sm font-semibold text-neutral-500",
+      "row": "border-b border-neutral-100 last:border-0",
+      "cell": "py-4 text-sm text-neutral-900",
+      "amount_cell": "py-4 text-sm font-mono text-right"
+    },
+    "packing_list": {
+      "item": "flex items-center gap-3 p-3 hover:bg-neutral-50 rounded-lg transition-colors border border-transparent hover:border-neutral-100",
+      "checkbox": "w-5 h-5 rounded border border-neutral-300 text-[#DE6242] focus:ring-[#DE6242]",
+      "text": "text-neutral-900 peer-checked:text-neutral-400 peer-checked:line-through transition-all"
+    }
+  },
+  "image_urls": {
+    "hero_abstract": {
+      "url": "https://images.unsplash.com/photo-1772536888848-c0e7f0f6cf39?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODh8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGVhcnRoJTIwdGV4dHVyZSUyMG1hcHxlbnwwfHx8fDE3Nzc4ODIzODR8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Abstract topographic map with rough textures and smooth water. Use as a subtle background for the hero section or empty states.",
+      "usage": "landing_page_hero_background, empty_state_dashboard"
+    },
+    "feature_architecture": {
+      "url": "https://images.unsplash.com/photo-1770387208261-4dbb347ed760?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDN8MHwxfHNlYXJjaHwzfHxtaW5pbWFsaXN0JTIwdHJhdmVsJTIwYXJjaGl0ZWN0dXJlfGVufDB8fHx8MTc3Nzg4MjM3OXww&ixlib=rb-4.1.0&q=85",
+      "description": "Modern building with arched balconies and blue sky.",
+      "usage": "landing_page_feature_1"
+    },
+    "feature_road_map": {
+      "url": "https://images.unsplash.com/photo-1670876639828-7658ec6257ab?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNTl8MHwxfHNlYXJjaHwxfHxhZXJpYWwlMjB2aWV3JTIwcm9hZCUyMG1hcHxlbnwwfHx8fDE3Nzc4ODIzODB8MA&ixlib=rb-4.1.0&q=85",
+      "description": "A winding road in the middle of a lush green forest.",
+      "usage": "landing_page_feature_2"
+    },
+    "feature_planning": {
+      "url": "https://images.pexels.com/photos/8092410/pexels-photo-8092410.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Minimalist workspace with an open notebook, pen, and laptop.",
+      "usage": "auth_page_side_image, packing_list_empty_state"
+    }
+  },
+  "testing_attributes": [
+    "data-testid='login-submit-button'",
+    "data-testid='signup-submit-button'",
+    "data-testid='create-itinerary-button'",
+    "data-testid='itinerary-card-{id}'",
+    "data-testid='add-timeline-event-button'",
+    "data-testid='add-expense-button'",
+    "data-testid='add-packing-item-button'",
+    "data-testid='export-pdf-button'",
+    "data-testid='timeline-event-{id}'",
+    "data-testid='packing-item-checkbox-{id}'"
+  ],
+  "motion_and_interactions": {
+    "hover_states": "All interactive elements must have a distinct hover state. Use subtle background shifts (e.g., hover:bg-neutral-50) rather than scale transforms to keep the UI feeling rigid and professional.",
+    "page_transitions": "Minimalist fade-ins. Avoid heavy sliding animations.",
+    "modals": "Fade in with a slight upward drift (translate-y-2 to translate-y-0)."
+  },
+  "instructions_to_main_agent": [
+    "Strictly avoid the 'Inter' font. Follow the typography setup carefully.",
+    "Do NOT use drop shadows on cards (no shadow-md or shadow-lg). Instead, use border border-neutral-200 and solid white backgrounds.",
+    "Use lucide-react for all icons, keeping a stroke width of 1.5 for a sophisticated look.",
+    "For the Map View feature, embed a cleanly styled map (e.g., Mapbox or Google Maps with a minimal/silver styling) inside a bordered container with rounded-xl.",
+    "Implement Shadcn UI extensively but override default styles to remove box shadows and enforce 1px borders.",
+    "Ensure all user-facing monetary values and times use the font-mono class for precise alignment."
+  ]
+}
