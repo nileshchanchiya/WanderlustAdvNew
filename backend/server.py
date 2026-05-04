@@ -13,6 +13,7 @@ from typing import List, Optional, Dict, Any, Literal
 
 import bcrypt
 import jwt
+import certifi
 from bson import ObjectId
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends
 from starlette.middleware.cors import CORSMiddleware
@@ -28,7 +29,7 @@ BRUTE_LIMIT = 5
 BRUTE_WINDOW_MIN = 15
 
 mongo_url = os.environ["MONGO_URL"]
-client = AsyncIOMotorClient(mongo_url)
+client = AsyncIOMotorClient(mongo_url, tlsCAFile=certifi.where())
 db = client[os.environ["DB_NAME"]]
 
 app = FastAPI(title="Itinera API")
