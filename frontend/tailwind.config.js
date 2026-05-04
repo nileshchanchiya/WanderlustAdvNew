@@ -12,6 +12,7 @@ module.exports = {
       fontFamily: {
         sans: ["Satoshi", "ui-sans-serif", "system-ui", "sans-serif"],
         display: ["'Cabinet Grotesk'", "Satoshi", "ui-sans-serif", "sans-serif"],
+        serif: ["Fraunces", "'Cabinet Grotesk'", "Georgia", "serif"],
         mono: ["'JetBrains Mono'", "ui-monospace", "monospace"],
       },
       colors: {
@@ -49,9 +50,22 @@ module.exports = {
           foreground: "hsl(var(--card-foreground))",
         },
         terracotta: {
-          DEFAULT: "#DE6242",
-          hover: "#C85335",
-          soft: "#FBEDE7",
+          DEFAULT: "#0B2447",
+          hover: "#102B54",
+          soft: "#E8EEF7",
+        },
+        navy: {
+          DEFAULT: "#0B2447",
+          deep: "#061630",
+          hover: "#102B54",
+          soft: "#E8EEF7",
+          ink: "#0A1F42",
+        },
+        gold: {
+          DEFAULT: "#C9A96E",
+          hover: "#B8985C",
+          soft: "#F6EFDD",
+          ink: "#8B7540",
         },
         ink: {
           900: "#171717",

@@ -231,3 +231,44 @@ class TestItineraryCRUD:
             for it in lst:
                 if it.get("title", "").startswith("TEST_"):
                     s.delete(f"{API}/itineraries/{it['id']}")
+
+
+# ----------------- Inquiries (Contact form) -----------------
+class TestInquiries:
+    def test_create_inquiry_ok(self):
+        payload = {
+            "name": "TEST_John Doe",
+            "email": "test_john@example.com",
+            "phone": "+919876543210",
+            "destination": "Bali",
+            "travel_dates": "March 2026",
+            "budget": "80000",
+            "message": "Looking for a honeymoon trip",
+        }
+        r = requests.post(f"{API}/inquiries", json=payload)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data.get("ok") is True
+        assert isinstance(data.get("id"), str) and len(data["id"]) > 0
+
+    def test_create_inquiry_missing_name_returns_400(self):
+        r = requests.post(
+            f"{API}/inquiries",
+            json={"email": "nonAme@example.com", "message": "hi"},
+        )
+        assert r.status_code == 400
+
+    def test_create_inquiry_missing_email_returns_400(self):
+        r = requests.post(
+            f"{API}/inquiries",
+            json={"name": "NoEmail", "message": "hi"},
+        )
+        assert r.status_code == 400
+
+    def test_create_inquiry_minimal_fields(self):
+        r = requests.post(
+            f"{API}/inquiries",
+            json={"name": "TEST_Minimal", "email": "min@example.com"},
+        )
+        assert r.status_code == 200
+        assert r.json().get("ok") is True

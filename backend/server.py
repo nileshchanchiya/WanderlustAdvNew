@@ -394,6 +394,20 @@ async def delete_itinerary(itinerary_id: str, user: dict = Depends(get_current_u
     return {"ok": True}
 
 
+@api.post("/inquiries")
+async def create_inquiry(payload: Dict[str, Any]):
+    # Contact form: public endpoint. Stores lead for follow-up.
+    allowed = {"name", "email", "phone", "destination", "travel_dates", "budget", "message"}
+    doc = {k: str(payload.get(k, ""))[:2000] for k in allowed}
+    if not doc.get("name") or not doc.get("email"):
+        raise HTTPException(status_code=400, detail="Name and email are required")
+    doc["id"] = str(uuid.uuid4())
+    doc["created_at"] = datetime.now(timezone.utc).isoformat()
+    doc["status"] = "new"
+    await db.inquiries.insert_one(doc)
+    return {"ok": True, "id": doc["id"]}
+
+
 # ---------- Startup ----------
 @app.on_event("startup")
 async def on_startup():

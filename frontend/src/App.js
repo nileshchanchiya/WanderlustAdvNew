@@ -4,11 +4,16 @@ import "@/index.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import Landing from "@/pages/Landing";
+import Home from "@/pages/Home";
+import Services from "@/pages/Services";
+import About from "@/pages/About";
+import Contact from "@/pages/Contact";
+import Destinations from "@/pages/Destinations";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import Dashboard from "@/pages/Dashboard";
 import ItineraryDetail from "@/pages/ItineraryDetail";
+import WhatsAppFab from "@/components/WhatsAppFab";
 import { Toaster } from "sonner";
 
 function App() {
@@ -17,7 +22,11 @@ function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Landing />} />
+            <Route path="/" element={<Home />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/destinations" element={<Destinations />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route
@@ -37,6 +46,7 @@ function App() {
               }
             />
           </Routes>
+          <WhatsAppFab />
           <Toaster position="top-right" richColors closeButton />
         </BrowserRouter>
       </AuthProvider>

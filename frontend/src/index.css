@@ -1,4 +1,5 @@
 @import url("https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,700,500,400&f[]=satoshi@400,500,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap");
 @import url("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");
 
@@ -13,19 +14,19 @@
   --card-foreground: 0 0% 9%;
   --popover: 0 0% 100%;
   --popover-foreground: 0 0% 9%;
-  --primary: 14 71% 56%;
+  --primary: 215 73% 16%;
   --primary-foreground: 0 0% 100%;
   --secondary: 40 6% 95%;
   --secondary-foreground: 0 0% 9%;
   --muted: 40 6% 95%;
   --muted-foreground: 0 0% 45%;
-  --accent: 14 71% 56%;
+  --accent: 215 73% 16%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
   --border: 30 6% 90%;
   --input: 30 6% 90%;
-  --ring: 14 71% 56%;
+  --ring: 215 73% 16%;
   --radius: 0.625rem;
 }
 
@@ -50,13 +51,19 @@ body {
   letter-spacing: -0.02em;
 }
 
+.font-serif {
+  font-family: "Fraunces", "Cabinet Grotesk", Georgia, serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.015em;
+}
+
 .font-mono {
   font-family: "JetBrains Mono", ui-monospace, monospace;
 }
 
 /* selection */
 ::selection {
-  background: #de6242;
+  background: #0b2447;
   color: #fff;
 }
 
