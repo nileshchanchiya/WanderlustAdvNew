@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Instagram, Facebook, Mail, Phone } from "lucide-react";
+import { Instagram, Facebook, Mail, Phone, Linkedin, AtSign } from "lucide-react";
 import logoImg from "@/assets/logo.svg";
 
 export default function Footer() {
@@ -31,7 +31,7 @@ export default function Footer() {
           <ul className="space-y-2 text-sm">
             <li><Link to="/signup" className="hover:text-gold">Plan a Trip</Link></li>
             <li><Link to="/login" className="hover:text-gold">Sign in</Link></li>
-            <li><Link to="/dashboard" className="hover:text-gold">My Trips</Link></li>
+            <li><Link to="/account" className="hover:text-gold">My Account</Link></li>
           </ul>
         </div>
 
@@ -54,11 +54,17 @@ export default function Footer() {
             </li>
           </ul>
           <div className="mt-5 flex items-center gap-3">
-            <a href="#" className="h-9 w-9 rounded-full border border-white/20 grid place-items-center hover:border-gold hover:text-gold" aria-label="instagram">
+            <a href="https://www.instagram.com/wanderlustadventure.in/" target="_blank" rel="noopener noreferrer" className="h-9 w-9 rounded-full border border-white/20 grid place-items-center hover:border-gold hover:text-gold transition-colors" aria-label="Instagram">
               <Instagram className="h-4 w-4" strokeWidth={1.5} />
             </a>
-            <a href="#" className="h-9 w-9 rounded-full border border-white/20 grid place-items-center hover:border-gold hover:text-gold" aria-label="facebook">
+            <a href="https://www.facebook.com/wanderlustadventures.in" target="_blank" rel="noopener noreferrer" className="h-9 w-9 rounded-full border border-white/20 grid place-items-center hover:border-gold hover:text-gold transition-colors" aria-label="Facebook">
               <Facebook className="h-4 w-4" strokeWidth={1.5} />
+            </a>
+            <a href="https://www.linkedin.com/company/wanderlustadventure" target="_blank" rel="noopener noreferrer" className="h-9 w-9 rounded-full border border-white/20 grid place-items-center hover:border-gold hover:text-gold transition-colors" aria-label="LinkedIn">
+              <Linkedin className="h-4 w-4" strokeWidth={1.5} />
+            </a>
+            <a href="https://www.threads.com/@wanderlustadventure.in" target="_blank" rel="noopener noreferrer" className="h-9 w-9 rounded-full border border-white/20 grid place-items-center hover:border-gold hover:text-gold transition-colors" aria-label="Threads">
+              <AtSign className="h-4 w-4" strokeWidth={1.5} />
             </a>
           </div>
         </div>

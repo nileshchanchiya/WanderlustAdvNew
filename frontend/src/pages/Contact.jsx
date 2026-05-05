@@ -4,7 +4,7 @@ import Footer from "@/components/Footer";
 import Seo from "@/components/Seo";
 import api, { formatApiError } from "@/lib/api";
 import { toast } from "sonner";
-import { Phone, Mail, MessageCircle, Send, Loader2, CheckCircle2, MapPin } from "lucide-react";
+import { Phone, Mail, MessageCircle, Send, Loader2, CheckCircle2, MapPin, Instagram, Facebook, Linkedin, AtSign } from "lucide-react";
 
 const INITIAL = {
   name: "",
@@ -110,6 +110,47 @@ export default function Contact() {
               <div className="text-xs text-white/80 mt-1">Fastest replies</div>
             </div>
           </a>
+          <div className="p-6 bg-white border border-fog/60 rounded-xl shadow-lift">
+            <div className="label-caps text-driftwood mb-4">Follow us</div>
+            <div className="flex items-center gap-3">
+              <a
+                href="https://www.instagram.com/wanderlustadventure.in/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-10 w-10 rounded-lg bg-gold-soft text-ocean grid place-items-center hover:bg-ocean hover:text-white transition-colors"
+                aria-label="Instagram"
+              >
+                <Instagram className="h-4 w-4" strokeWidth={1.5} />
+              </a>
+              <a
+                href="https://www.facebook.com/wanderlustadventures.in"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-10 w-10 rounded-lg bg-gold-soft text-ocean grid place-items-center hover:bg-ocean hover:text-white transition-colors"
+                aria-label="Facebook"
+              >
+                <Facebook className="h-4 w-4" strokeWidth={1.5} />
+              </a>
+              <a
+                href="https://www.linkedin.com/company/wanderlustadventure"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-10 w-10 rounded-lg bg-gold-soft text-ocean grid place-items-center hover:bg-ocean hover:text-white transition-colors"
+                aria-label="LinkedIn"
+              >
+                <Linkedin className="h-4 w-4" strokeWidth={1.5} />
+              </a>
+              <a
+                href="https://www.threads.com/@wanderlustadventure.in"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-10 w-10 rounded-lg bg-gold-soft text-ocean grid place-items-center hover:bg-ocean hover:text-white transition-colors"
+                aria-label="Threads"
+              >
+                <AtSign className="h-4 w-4" strokeWidth={1.5} />
+              </a>
+            </div>
+          </div>
           <div className="p-6 bg-white border border-fog/60 rounded-xl shadow-lift">
             <div className="flex items-center gap-2 label-caps">
               <MapPin className="h-3.5 w-3.5 text-gold" strokeWidth={1.5} />
