@@ -28,9 +28,9 @@ export default function Navbar() {
 
   return (
     <header className="border-b border-fog/50 bg-white/95 backdrop-blur-md sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[72px] flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[80px] flex items-center justify-between">
         <Link to="/" className="flex items-center flex-shrink-0" data-testid="nav-logo">
-          <img src={logoImg} alt="Wanderlust Adventure" className="w-auto" style={{ height: '48px' }} />
+          <img src={logoImg} alt="Wanderlust Adventure" className="w-auto" style={{ height: '64px' }} />
         </Link>
 
         <nav className="hidden lg:flex items-center gap-1">
