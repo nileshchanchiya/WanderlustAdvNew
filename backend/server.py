@@ -10,11 +10,13 @@ import uuid
 import logging
 import secrets
 import random
+import asyncio
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Dict, Any, Literal
+from concurrent.futures import ThreadPoolExecutor
 
 import bcrypt
 import jwt
@@ -44,6 +46,7 @@ db = client[os.environ["DB_NAME"]]
 
 app = FastAPI(title="Itinera API")
 api = APIRouter(prefix="/api")
+_thread_pool = ThreadPoolExecutor(max_workers=2)
 
 
 # ---------- Helpers ----------
@@ -54,8 +57,17 @@ def make_slug(name: str) -> str:
     return s
 
 
-def hash_password(password: str) -> str:
+def _hash_password_sync(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def hash_password(password: str) -> str:
+    return _hash_password_sync(password)
+
+
+async def hash_password_async(password: str) -> str:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(_thread_pool, _hash_password_sync, password)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -284,7 +296,7 @@ def generate_otp() -> str:
     return "".join([str(random.randint(0, 9)) for _ in range(OTP_LENGTH)])
 
 
-def send_otp_email(to_email: str, otp_code: str, name: str) -> bool:
+def _send_otp_email_sync(to_email: str, otp_code: str, name: str) -> bool:
     smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
     smtp_port = int(os.environ.get("SMTP_PORT", "587"))
     smtp_email = os.environ.get("SMTP_EMAIL", "")
@@ -323,7 +335,7 @@ def send_otp_email(to_email: str, otp_code: str, name: str) -> bool:
     msg.attach(MIMEText(html, "html"))
 
     try:
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
             server.starttls()
             server.login(smtp_email, smtp_password)
             server.sendmail(smtp_email, to_email, msg.as_string())
@@ -331,6 +343,11 @@ def send_otp_email(to_email: str, otp_code: str, name: str) -> bool:
     except Exception as e:
         logging.error(f"Failed to send OTP email: {e}")
         return False
+
+
+async def send_otp_email(to_email: str, otp_code: str, name: str) -> bool:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(_thread_pool, _send_otp_email_sync, to_email, otp_code, name)
 
 
 # ---------- Auth Endpoints ----------
@@ -362,7 +379,7 @@ async def send_otp(data: OTPSendInput):
             "$set": {
                 "email": email,
                 "name": data.name.strip(),
-                "password_hash": hash_password(data.password),
+                "password_hash": await hash_password_async(data.password),
                 "otp": otp_code,
                 "attempts": 0,
                 "created_at": now,
@@ -375,7 +392,7 @@ async def send_otp(data: OTPSendInput):
     await db.otp_rate_limits.insert_one({"email": email, "created_at": now})
 
     # Send email
-    sent = send_otp_email(email, otp_code, data.name.strip())
+    sent = await send_otp_email(email, otp_code, data.name.strip())
     if not sent:
         # If SMTP not configured, still return success (for dev/testing)
         logging.warning(f"OTP for {email}: {otp_code} (email not sent — SMTP not configured)")
