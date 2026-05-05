@@ -62,6 +62,26 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const sendOtp = async (email, password, name) => {
+    try {
+      const { data } = await api.post("/auth/send-otp", { email, password, name });
+      return { ok: true, message: data.message };
+    } catch (err) {
+      return { ok: false, error: formatApiError(err) };
+    }
+  };
+
+  const verifyOtp = async (email, otp) => {
+    try {
+      const { data } = await api.post("/auth/verify-otp", { email, otp });
+      saveTokens(data.access_token, data.refresh_token);
+      setUser(data);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: formatApiError(err) };
+    }
+  };
+
   const logout = async () => {
     try {
       await api.post("/auth/logout");
@@ -79,7 +99,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, checkSession, updateProfile }}>
+    <AuthContext.Provider value={{ user, login, register, sendOtp, verifyOtp, logout, checkSession, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

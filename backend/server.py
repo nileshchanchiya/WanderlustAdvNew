@@ -9,6 +9,10 @@ import re
 import uuid
 import logging
 import secrets
+import random
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Dict, Any, Literal
 
@@ -28,6 +32,11 @@ ACCESS_MIN = 15
 REFRESH_DAYS = 7
 BRUTE_LIMIT = 5
 BRUTE_WINDOW_MIN = 15
+OTP_LENGTH = 6
+OTP_EXPIRY_MIN = 10
+OTP_MAX_ATTEMPTS = 5
+OTP_RATE_LIMIT = 3  # max OTP requests per email per window
+OTP_RATE_WINDOW_MIN = 15
 
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url, tlsCAFile=certifi.where())
@@ -169,6 +178,17 @@ class RegisterInput(BaseModel):
     name: str = Field(min_length=1, max_length=80)
 
 
+class OTPSendInput(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=128)
+    name: str = Field(min_length=1, max_length=80)
+
+
+class OTPVerifyInput(BaseModel):
+    email: EmailStr
+    otp: str = Field(min_length=6, max_length=6)
+
+
 class LoginInput(BaseModel):
     email: EmailStr
     password: str
@@ -259,7 +279,172 @@ class Itinerary(ItineraryBase):
     updated_at: str
 
 
+# ---------- Email OTP Helpers ----------
+def generate_otp() -> str:
+    return "".join([str(random.randint(0, 9)) for _ in range(OTP_LENGTH)])
+
+
+def send_otp_email(to_email: str, otp_code: str, name: str) -> bool:
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    smtp_email = os.environ.get("SMTP_EMAIL", "")
+    smtp_password = os.environ.get("SMTP_PASSWORD", "")
+
+    if not smtp_email or not smtp_password:
+        logging.warning("SMTP not configured — OTP email skipped")
+        return False
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"Your Wanderlust Adventure verification code: {otp_code}"
+    msg["From"] = f"Wanderlust Adventure <{smtp_email}>"
+    msg["To"] = to_email
+
+    html = f"""
+    <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #F7F3ED; border-radius: 12px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+            <h2 style="color: #0A3D62; margin: 0; font-size: 22px;">Wanderlust Adventure</h2>
+            <p style="color: #8D7B68; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; margin-top: 4px;">Email Verification</p>
+        </div>
+        <div style="background: white; border-radius: 10px; padding: 28px; text-align: center; border: 1px solid #E5E5E5;">
+            <p style="color: #1C1C1E; font-size: 16px; margin: 0 0 8px;">Hi {name},</p>
+            <p style="color: #525252; font-size: 14px; margin: 0 0 24px;">Use this code to verify your email and complete your registration:</p>
+            <div style="background: #0A3D62; color: #F5A623; font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 16px 24px; border-radius: 8px; display: inline-block; font-family: monospace;">
+                {otp_code}
+            </div>
+            <p style="color: #8D7B68; font-size: 13px; margin: 24px 0 0;">This code expires in {OTP_EXPIRY_MIN} minutes.</p>
+        </div>
+        <p style="color: #8D7B68; font-size: 11px; text-align: center; margin-top: 20px;">If you didn't request this, please ignore this email.</p>
+    </div>
+    """
+
+    text = f"Hi {name}, your Wanderlust Adventure verification code is: {otp_code}. It expires in {OTP_EXPIRY_MIN} minutes."
+
+    msg.attach(MIMEText(text, "plain"))
+    msg.attach(MIMEText(html, "html"))
+
+    try:
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_email, smtp_password)
+            server.sendmail(smtp_email, to_email, msg.as_string())
+        return True
+    except Exception as e:
+        logging.error(f"Failed to send OTP email: {e}")
+        return False
+
+
 # ---------- Auth Endpoints ----------
+@api.post("/auth/send-otp")
+async def send_otp(data: OTPSendInput):
+    email = data.email.lower().strip()
+
+    # Check if email already registered
+    existing = await db.users.find_one({"email": email})
+    if existing:
+        raise HTTPException(status_code=409, detail="Email already registered")
+
+    # Rate limit: max OTP_RATE_LIMIT requests per email per window
+    now = datetime.now(timezone.utc)
+    window_start = now - timedelta(minutes=OTP_RATE_WINDOW_MIN)
+    recent_count = await db.otp_rate_limits.count_documents(
+        {"email": email, "created_at": {"$gte": window_start}}
+    )
+    if recent_count >= OTP_RATE_LIMIT:
+        raise HTTPException(status_code=429, detail="Too many OTP requests. Please try again later.")
+
+    # Generate OTP
+    otp_code = generate_otp()
+
+    # Upsert pending OTP (one per email)
+    await db.pending_otps.update_one(
+        {"email": email},
+        {
+            "$set": {
+                "email": email,
+                "name": data.name.strip(),
+                "password_hash": hash_password(data.password),
+                "otp": otp_code,
+                "attempts": 0,
+                "created_at": now,
+            }
+        },
+        upsert=True,
+    )
+
+    # Track rate limit
+    await db.otp_rate_limits.insert_one({"email": email, "created_at": now})
+
+    # Send email
+    sent = send_otp_email(email, otp_code, data.name.strip())
+    if not sent:
+        # If SMTP not configured, still return success (for dev/testing)
+        logging.warning(f"OTP for {email}: {otp_code} (email not sent — SMTP not configured)")
+
+    return {"ok": True, "message": "Verification code sent to your email"}
+
+
+@api.post("/auth/verify-otp")
+async def verify_otp(data: OTPVerifyInput, response: Response):
+    email = data.email.lower().strip()
+    now = datetime.now(timezone.utc)
+
+    pending = await db.pending_otps.find_one({"email": email})
+    if not pending:
+        raise HTTPException(status_code=400, detail="No pending verification found. Please request a new code.")
+
+    # Check expiry (10 min)
+    created = pending["created_at"]
+    if isinstance(created, datetime) and created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    if (now - created).total_seconds() > OTP_EXPIRY_MIN * 60:
+        await db.pending_otps.delete_one({"email": email})
+        raise HTTPException(status_code=400, detail="Verification code expired. Please request a new one.")
+
+    # Check max attempts
+    if pending.get("attempts", 0) >= OTP_MAX_ATTEMPTS:
+        await db.pending_otps.delete_one({"email": email})
+        raise HTTPException(status_code=400, detail="Too many wrong attempts. Please request a new code.")
+
+    # Verify OTP
+    if pending["otp"] != data.otp.strip():
+        await db.pending_otps.update_one(
+            {"email": email},
+            {"$inc": {"attempts": 1}}
+        )
+        remaining = OTP_MAX_ATTEMPTS - pending.get("attempts", 0) - 1
+        raise HTTPException(
+            status_code=400,
+            detail=f"Incorrect code. {remaining} attempt{'s' if remaining != 1 else ''} remaining."
+        )
+
+    # OTP correct — create the user
+    existing = await db.users.find_one({"email": email})
+    if existing:
+        await db.pending_otps.delete_one({"email": email})
+        raise HTTPException(status_code=409, detail="Email already registered")
+
+    doc = {
+        "email": email,
+        "password_hash": pending["password_hash"],
+        "name": pending["name"],
+        "role": "user",
+        "email_verified": True,
+        "created_at": now,
+    }
+    res = await db.users.insert_one(doc)
+    uid = str(res.inserted_id)
+
+    # Clean up
+    await db.pending_otps.delete_one({"email": email})
+
+    # Issue tokens
+    access = create_access_token(uid, email)
+    refresh = create_refresh_token(uid)
+    set_auth_cookies(response, access, refresh)
+    user_data = user_to_public({**doc, "_id": res.inserted_id})
+    return {**user_data, "access_token": access, "refresh_token": refresh}
+
+
 @api.post("/auth/register")
 async def register(data: RegisterInput, response: Response):
     email = data.email.lower().strip()
@@ -785,6 +970,10 @@ async def on_startup():
     await db.destinations.create_index([("created_at", -1)])
     await db.inquiries.create_index("id", unique=True)
     await db.inquiries.create_index([("created_at", -1)])
+    # OTP indexes
+    await db.pending_otps.create_index("email", unique=True)
+    await db.pending_otps.create_index("created_at", expireAfterSeconds=OTP_EXPIRY_MIN * 60)
+    await db.otp_rate_limits.create_index("created_at", expireAfterSeconds=OTP_RATE_WINDOW_MIN * 60)
 
     admin_email = os.environ.get("ADMIN_EMAIL", "info@wanderlustadventure.in").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
