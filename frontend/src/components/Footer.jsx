@@ -9,7 +9,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 grid lg:grid-cols-12 gap-10">
         <div className="lg:col-span-4">
           <Link to="/" className="flex items-center">
-            <img src={logoImg} alt="Wanderlust Adventure" className="h-16 w-auto brightness-0 invert" />
+            <img src={logoImg} alt="Wanderlust Adventure" className="w-auto brightness-0 invert" style={{ height: '56px' }} />
           </Link>
           <p className="mt-5 text-sm text-white/70 leading-relaxed max-w-sm">
             A customer-first travel agency crafting personalised journeys across India and the world.
