@@ -125,7 +125,11 @@ def user_to_public(u: dict) -> dict:
         "id": str(u["_id"]) if "_id" in u else u.get("id"),
         "email": u["email"],
         "name": u.get("name", ""),
+        "phone": u.get("phone", ""),
+        "city": u.get("city", ""),
+        "profile_image": u.get("profile_image", ""),
         "role": u.get("role", "user"),
+        "wishlist": u.get("wishlist", []),
         "created_at": u.get("created_at").isoformat() if isinstance(u.get("created_at"), datetime) else u.get("created_at"),
     }
 
@@ -168,6 +172,22 @@ class RegisterInput(BaseModel):
 class LoginInput(BaseModel):
     email: EmailStr
     password: str
+
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=80)
+    phone: Optional[str] = Field(None, max_length=20)
+    city: Optional[str] = Field(None, max_length=80)
+    profile_image: Optional[str] = Field(None, max_length=500)
+
+
+class AdminUserUpdate(BaseModel):
+    role: Optional[Literal["user", "admin"]] = None
+    disabled: Optional[bool] = None
+
+
+class InquiryStatusUpdate(BaseModel):
+    status: Literal["new", "contacted", "resolved", "archived"]
 
 
 class TimelineEvent(BaseModel):
@@ -311,6 +331,50 @@ async def logout(response: Response):
 @api.get("/auth/me")
 async def me(user: dict = Depends(get_current_user)):
     return user_to_public(user)
+
+
+@api.put("/auth/profile")
+async def update_profile(data: ProfileUpdate, user: dict = Depends(get_current_user)):
+    updates: Dict[str, Any] = {
+        k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None
+    }
+    if not updates:
+        return user_to_public(user)
+    await db.users.update_one({"_id": user["_id"]}, {"$set": updates})
+    updated = await db.users.find_one({"_id": user["_id"]})
+    return user_to_public(updated)
+
+
+# ---------- Wishlist Endpoints ----------
+@api.get("/wishlist")
+async def list_wishlist(user: dict = Depends(get_current_user)):
+    wishlist_ids = user.get("wishlist", [])
+    if not wishlist_ids:
+        return []
+    cursor = db.destinations.find({"id": {"$in": wishlist_ids}}, {"_id": 0})
+    items = await cursor.to_list(length=100)
+    return items
+
+
+@api.post("/wishlist/{destination_id}")
+async def add_to_wishlist(destination_id: str, user: dict = Depends(get_current_user)):
+    dest = await db.destinations.find_one({"id": destination_id})
+    if not dest:
+        raise HTTPException(status_code=404, detail="Destination not found")
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$addToSet": {"wishlist": destination_id}}
+    )
+    return {"ok": True}
+
+
+@api.delete("/wishlist/{destination_id}")
+async def remove_from_wishlist(destination_id: str, user: dict = Depends(get_current_user)):
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$pull": {"wishlist": destination_id}}
+    )
+    return {"ok": True}
 
 
 @api.post("/auth/refresh")
@@ -605,6 +669,110 @@ async def create_inquiry(payload: InquiryInput):
     return {"ok": True, "id": doc["id"]}
 
 
+# ---------- Admin Endpoints ----------
+@api.get("/admin/stats")
+async def admin_stats(admin: dict = Depends(require_admin)):
+    total_users = await db.users.count_documents({})
+    total_itineraries = await db.itineraries.count_documents({})
+    total_inquiries = await db.inquiries.count_documents({})
+    new_inquiries = await db.inquiries.count_documents({"status": "new"})
+    total_destinations = await db.destinations.count_documents({})
+    return {
+        "total_users": total_users,
+        "total_itineraries": total_itineraries,
+        "total_inquiries": total_inquiries,
+        "new_inquiries": new_inquiries,
+        "total_destinations": total_destinations,
+    }
+
+
+@api.get("/admin/users")
+async def admin_list_users(admin: dict = Depends(require_admin)):
+    cursor = db.users.find({}).sort("created_at", -1)
+    users = await cursor.to_list(length=500)
+    result = []
+    for u in users:
+        pub = user_to_public(u)
+        pub["disabled"] = u.get("disabled", False)
+        # Count itineraries for each user
+        uid = str(u["_id"])
+        itin_count = await db.itineraries.count_documents({"user_id": uid})
+        pub["itinerary_count"] = itin_count
+        result.append(pub)
+    return result
+
+
+@api.get("/admin/users/{user_id}")
+async def admin_get_user(user_id: str, admin: dict = Depends(require_admin)):
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    pub = user_to_public(user)
+    pub["disabled"] = user.get("disabled", False)
+    # Fetch user's itineraries
+    cursor = db.itineraries.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1)
+    itineraries = await cursor.to_list(length=100)
+    for it in itineraries:
+        if isinstance(it.get("created_at"), datetime):
+            it["created_at"] = it["created_at"].isoformat()
+        if isinstance(it.get("updated_at"), datetime):
+            it["updated_at"] = it["updated_at"].isoformat()
+    pub["itineraries"] = itineraries
+    return pub
+
+
+@api.put("/admin/users/{user_id}")
+async def admin_update_user(user_id: str, data: AdminUserUpdate, admin: dict = Depends(require_admin)):
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    # Prevent self-demotion
+    if str(admin["_id"]) == user_id and data.role and data.role != "admin":
+        raise HTTPException(status_code=400, detail="Cannot remove your own admin role")
+    updates: Dict[str, Any] = {
+        k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None
+    }
+    if not updates:
+        return user_to_public(user)
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": updates})
+    updated = await db.users.find_one({"_id": ObjectId(user_id)})
+    pub = user_to_public(updated)
+    pub["disabled"] = updated.get("disabled", False)
+    return pub
+
+
+@api.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, admin: dict = Depends(require_admin)):
+    if str(admin["_id"]) == user_id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    # Cascade: delete user's itineraries
+    await db.itineraries.delete_many({"user_id": user_id})
+    await db.users.delete_one({"_id": ObjectId(user_id)})
+    return {"ok": True}
+
+
+@api.get("/admin/inquiries")
+async def admin_list_inquiries(admin: dict = Depends(require_admin)):
+    cursor = db.inquiries.find({}, {"_id": 0}).sort("created_at", -1)
+    items = await cursor.to_list(length=500)
+    return items
+
+
+@api.put("/admin/inquiries/{inquiry_id}")
+async def admin_update_inquiry(inquiry_id: str, data: InquiryStatusUpdate, admin: dict = Depends(require_admin)):
+    result = await db.inquiries.update_one(
+        {"id": inquiry_id},
+        {"$set": {"status": data.status}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Inquiry not found")
+    doc = await db.inquiries.find_one({"id": inquiry_id}, {"_id": 0})
+    return doc
+
+
 # ---------- Startup ----------
 @app.on_event("startup")
 async def on_startup():
@@ -615,6 +783,8 @@ async def on_startup():
     await db.destinations.create_index("id", unique=True)
     await db.destinations.create_index("slug", unique=True)
     await db.destinations.create_index([("created_at", -1)])
+    await db.inquiries.create_index("id", unique=True)
+    await db.inquiries.create_index([("created_at", -1)])
 
     admin_email = os.environ.get("ADMIN_EMAIL", "info@wanderlustadventure.in").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")

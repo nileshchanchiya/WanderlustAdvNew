@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { LogOut, Menu, X } from "lucide-react";
+import { LogOut, Menu, X, ShieldCheck } from "lucide-react";
 import logoImg from "@/assets/logo.svg";
 
 const PUBLIC_LINKS = [
@@ -56,12 +56,22 @@ export default function Navbar() {
         <div className="flex items-center gap-2">
           {isLoggedIn ? (
             <>
+              {user.role === "admin" && (
+                <Link
+                  to="/admin"
+                  className="hidden sm:inline-flex items-center gap-1.5 text-[13px] rounded-full px-4 py-2 text-gold hover:bg-gold-soft font-label font-semibold uppercase tracking-wider transition-colors"
+                  data-testid="nav-admin-link"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" strokeWidth={2} />
+                  Admin
+                </Link>
+              )}
               <Link
-                to="/dashboard"
+                to="/account"
                 className="hidden sm:inline-flex items-center gap-2 bg-ocean-gradient text-white px-5 py-2.5 rounded-full font-label text-[13px] font-semibold uppercase tracking-wider hover:shadow-float transition-all"
-                data-testid="nav-mytrips-link"
+                data-testid="nav-account-link"
               >
-                My Trips
+                My Account
               </Link>
               <button
                 onClick={onLogout}
@@ -127,13 +137,25 @@ export default function Navbar() {
               </NavLink>
             ))}
             {isLoggedIn ? (
-              <Link
-                to="/dashboard"
-                onClick={() => setOpen(false)}
-                className="px-3 py-3 font-label text-sm font-semibold rounded-full bg-ocean text-white text-center mt-2 uppercase tracking-wider"
-              >
-                My Trips
-              </Link>
+              <>
+                {user.role === "admin" && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setOpen(false)}
+                    className="px-3 py-2.5 font-label text-sm font-semibold rounded-md text-gold hover:bg-gold-soft flex items-center gap-2"
+                  >
+                    <ShieldCheck className="h-4 w-4" strokeWidth={2} />
+                    Admin Dashboard
+                  </Link>
+                )}
+                <Link
+                  to="/account"
+                  onClick={() => setOpen(false)}
+                  className="px-3 py-3 font-label text-sm font-semibold rounded-full bg-ocean text-white text-center mt-2 uppercase tracking-wider"
+                >
+                  My Account
+                </Link>
+              </>
             ) : (
               <>
                 <Link

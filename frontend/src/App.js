@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AdminRoute from "@/components/AdminRoute";
 import Home from "@/pages/Home";
 import Services from "@/pages/Services";
 import About from "@/pages/About";
@@ -13,7 +14,8 @@ import Destinations from "@/pages/Destinations";
 import DestinationDetail from "@/pages/DestinationDetail";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
-import Dashboard from "@/pages/Dashboard";
+import MyAccount from "@/pages/MyAccount";
+import AdminDashboard from "@/pages/AdminDashboard";
 import ItineraryDetail from "@/pages/ItineraryDetail";
 import WhatsAppFab from "@/components/WhatsAppFab";
 import { Toaster } from "sonner";
@@ -34,10 +36,19 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route
+                path="/account"
+                element={
+                  <ProtectedRoute>
+                    <MyAccount />
+                  </ProtectedRoute>
+                }
+              />
+              {/* Keep /dashboard as redirect for old bookmarks */}
+              <Route
                 path="/dashboard"
                 element={
                   <ProtectedRoute>
-                    <Dashboard />
+                    <MyAccount />
                   </ProtectedRoute>
                 }
               />
@@ -47,6 +58,14 @@ function App() {
                   <ProtectedRoute>
                     <ItineraryDetail />
                   </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <AdminRoute>
+                    <AdminDashboard />
+                  </AdminRoute>
                 }
               />
             </Routes>
@@ -60,3 +79,4 @@ function App() {
 }
 
 export default App;
+

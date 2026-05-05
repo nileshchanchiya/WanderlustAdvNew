@@ -7,7 +7,7 @@ import AddDestinationModal from "@/components/AddDestinationModal";
 import { useAuth } from "@/context/AuthContext";
 import api, { formatApiError } from "@/lib/api";
 import { toast } from "sonner";
-import { MapPin, ArrowUpRight, Plus, Trash2, Sparkles } from "lucide-react";
+import { MapPin, ArrowUpRight, Plus, Trash2, Sparkles, Heart } from "lucide-react";
 
 const DESTS = [
   { region: "international", name: "Dubai", slug: "dubai", tag: "Luxury · Skyline", img: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1200&q=80", budget: "luxury", theme: "family" },
@@ -65,6 +65,37 @@ export default function Destinations() {
       }
     })();
   }, []);
+
+  // Wishlist state
+  const [wishlistIds, setWishlistIds] = useState(new Set());
+  const isLoggedIn = user && user !== false && user !== null;
+
+  useEffect(() => {
+    if (isLoggedIn && user.wishlist) {
+      setWishlistIds(new Set(user.wishlist));
+    }
+  }, [isLoggedIn, user]);
+
+  const toggleWishlist = async (destId) => {
+    if (!isLoggedIn) {
+      toast.info("Log in to save destinations");
+      return;
+    }
+    const isWished = wishlistIds.has(destId);
+    try {
+      if (isWished) {
+        await api.delete(`/wishlist/${destId}`);
+        setWishlistIds((prev) => { const s = new Set(prev); s.delete(destId); return s; });
+        toast.success("Removed from wishlist");
+      } else {
+        await api.post(`/wishlist/${destId}`);
+        setWishlistIds((prev) => new Set(prev).add(destId));
+        toast.success("Added to wishlist");
+      }
+    } catch (e) {
+      toast.error(formatApiError(e));
+    }
+  };
 
   const onCreated = (d) => {
     setCustoms((prev) => [d, ...prev]);
@@ -176,7 +207,7 @@ export default function Destinations() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((d) => (
-              <DestCard key={d.id || d.name} d={d} onDelete={onDelete} isAdmin={isAdmin} />
+              <DestCard key={d.id || d.name} d={d} onDelete={onDelete} isAdmin={isAdmin} isWished={wishlistIds.has(d.id)} onToggleWish={toggleWishlist} />
             ))}
           </div>
         )}
@@ -191,7 +222,7 @@ export default function Destinations() {
   );
 }
 
-function DestCard({ d, onDelete, isAdmin }) {
+function DestCard({ d, onDelete, isAdmin, isWished, onToggleWish }) {
   const slug = d.slug || d.name.toLowerCase().replace(/\s+/g, "-");
   const Inner = (
     <>
@@ -212,6 +243,24 @@ function DestCard({ d, onDelete, isAdmin }) {
         )}
         {!d.custom && <Badge variant="gold">{capitalize(d.budget)}</Badge>}
       </div>
+      {/* Wishlist heart */}
+      {d.id && (
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleWish(d.id);
+          }}
+          className={`absolute top-4 right-4 p-2 rounded-full transition-all duration-200 ${
+            isWished
+              ? "bg-white/90 text-red-500 opacity-100"
+              : "bg-white/70 text-white opacity-0 group-hover:opacity-100 hover:bg-white/90 hover:text-red-500"
+          }`}
+          aria-label={isWished ? "Remove from wishlist" : "Add to wishlist"}
+        >
+          <Heart className={`h-4 w-4 ${isWished ? "fill-red-500" : ""}`} strokeWidth={2} />
+        </button>
+      )}
       {d.custom && isAdmin && (
         <button
           onClick={(e) => {
@@ -219,7 +268,7 @@ function DestCard({ d, onDelete, isAdmin }) {
             e.stopPropagation();
             onDelete(d.id);
           }}
-          className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 rounded-full bg-white/90 text-danger hover:bg-white transition-all"
+          className="absolute top-14 right-4 opacity-0 group-hover:opacity-100 p-2 rounded-full bg-white/90 text-danger hover:bg-white transition-all"
           data-testid={`delete-dest-${d.id}`}
           aria-label="delete"
         >
