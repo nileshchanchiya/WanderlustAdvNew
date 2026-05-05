@@ -12,7 +12,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  if (user && user !== false && user !== null) return <Navigate to="/dashboard" replace />;
+  if (user && user !== false && user !== null) return <Navigate to="/account" replace />;
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -21,7 +21,7 @@ export default function Login() {
     const res = await login(email.trim(), password);
     setLoading(false);
     if (!res.ok) setErr(res.error);
-    else navigate("/dashboard");
+    else navigate("/account");
   };
 
   return (
@@ -37,6 +37,8 @@ export default function Login() {
           src="https://images.pexels.com/photos/8092410/pexels-photo-8092410.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
           alt="minimal planning desk"
           className="absolute inset-0 w-full h-full object-cover opacity-95"
+          loading="lazy"
+          decoding="async"
         />
         <div className="absolute inset-0 bg-ink-900/10" />
         <div className="absolute bottom-10 left-10 right-10 text-white drop-shadow">

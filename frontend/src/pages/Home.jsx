@@ -144,6 +144,8 @@ export default function Home() {
             src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=2000&q=80"
             alt="mountain range"
             className="h-full w-full object-cover"
+            fetchpriority="high"
+            decoding="async"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-ocean-deep/85 via-ocean/60 to-ocean-deep/25" />
           <div className="absolute inset-0 bg-gradient-to-t from-ocean-deep/70 via-transparent to-transparent" />
@@ -356,6 +358,8 @@ export default function Home() {
             src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2000&q=80"
             alt="tropical beach"
             className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
           />
           <div className="absolute inset-0 bg-ocean-deep/75" />
         </div>
@@ -404,6 +408,7 @@ function DestinationCard({ d }) {
           alt={d.name}
           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
           loading="lazy"
+          decoding="async"
         />
       </div>
       <div className="absolute inset-0 bg-gradient-to-t from-navy-deep/80 via-transparent to-transparent" />

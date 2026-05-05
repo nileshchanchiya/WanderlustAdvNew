@@ -115,6 +115,8 @@ export default function Signup() {
           src="https://images.unsplash.com/photo-1770387208261-4dbb347ed760?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDN8MHwxfHNlYXJjaHwzfHxtaW5pbWFsaXN0JTIwdHJhdmVsJTIwYXJjaGl0ZWN0dXJlfGVufDB8fHx8MTc3Nzg4MjM3OXww&ixlib=rb-4.1.0&q=85"
           alt="minimalist architecture"
           className="absolute inset-0 w-full h-full object-cover opacity-95"
+          loading="lazy"
+          decoding="async"
         />
         <div className="absolute bottom-10 left-10 right-10 text-white drop-shadow">
           <div className="label-caps text-white/80">◆ One plan, many trips</div>

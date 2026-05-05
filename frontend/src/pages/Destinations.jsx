@@ -232,6 +232,7 @@ function DestCard({ d, onDelete, isAdmin, isWished, onToggleWish }) {
           alt={d.name}
           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
           loading="lazy"
+          decoding="async"
         />
       </div>
       <div className="absolute inset-0 bg-gradient-to-t from-ocean-deep/85 via-ocean-deep/10 to-transparent" />
