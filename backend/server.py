@@ -296,22 +296,8 @@ def generate_otp() -> str:
     return "".join([str(random.randint(0, 9)) for _ in range(OTP_LENGTH)])
 
 
-def _send_otp_email_sync(to_email: str, otp_code: str, name: str) -> bool:
-    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
-    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
-    smtp_email = os.environ.get("SMTP_EMAIL", "")
-    smtp_password = os.environ.get("SMTP_PASSWORD", "")
-
-    if not smtp_email or not smtp_password:
-        logging.warning("SMTP not configured — OTP email skipped")
-        return False
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"Your Wanderlust Adventure verification code: {otp_code}"
-    msg["From"] = f"Wanderlust Adventure <{smtp_email}>"
-    msg["To"] = to_email
-
-    html = f"""
+def _build_otp_html(name: str, otp_code: str) -> str:
+    return f"""
     <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #F7F3ED; border-radius: 12px;">
         <div style="text-align: center; margin-bottom: 24px;">
             <h2 style="color: #0A3D62; margin: 0; font-size: 22px;">Wanderlust Adventure</h2>
@@ -329,8 +315,56 @@ def _send_otp_email_sync(to_email: str, otp_code: str, name: str) -> bool:
     </div>
     """
 
-    text = f"Hi {name}, your Wanderlust Adventure verification code is: {otp_code}. It expires in {OTP_EXPIRY_MIN} minutes."
 
+async def _send_via_resend(to_email: str, otp_code: str, name: str) -> bool:
+    """Send OTP email via Resend HTTP API (works on Render free tier)."""
+    api_key = os.environ.get("RESEND_API_KEY", "")
+    from_email = os.environ.get("RESEND_FROM", "Wanderlust Adventure <onboarding@resend.dev>")
+    if not api_key:
+        return False
+
+    import httpx
+    html = _build_otp_html(name, otp_code)
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "from": from_email,
+                    "to": [to_email],
+                    "subject": f"Your Wanderlust Adventure verification code: {otp_code}",
+                    "html": html,
+                },
+            )
+            if resp.status_code in (200, 201):
+                logging.info(f"OTP email sent via Resend to {to_email}")
+                return True
+            else:
+                logging.error(f"Resend API error {resp.status_code}: {resp.text}")
+                return False
+    except Exception as e:
+        logging.error(f"Resend send failed: {e}")
+        return False
+
+
+def _send_via_smtp_sync(to_email: str, otp_code: str, name: str) -> bool:
+    """Fallback: send OTP email via SMTP (works locally, blocked on Render free tier)."""
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    smtp_email = os.environ.get("SMTP_EMAIL", "")
+    smtp_password = os.environ.get("SMTP_PASSWORD", "")
+
+    if not smtp_email or not smtp_password:
+        return False
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"Your Wanderlust Adventure verification code: {otp_code}"
+    msg["From"] = f"Wanderlust Adventure <{smtp_email}>"
+    msg["To"] = to_email
+
+    html = _build_otp_html(name, otp_code)
+    text = f"Hi {name}, your Wanderlust Adventure verification code is: {otp_code}. It expires in {OTP_EXPIRY_MIN} minutes."
     msg.attach(MIMEText(text, "plain"))
     msg.attach(MIMEText(html, "html"))
 
@@ -339,15 +373,29 @@ def _send_otp_email_sync(to_email: str, otp_code: str, name: str) -> bool:
             server.starttls()
             server.login(smtp_email, smtp_password)
             server.sendmail(smtp_email, to_email, msg.as_string())
+        logging.info(f"OTP email sent via SMTP to {to_email}")
         return True
     except Exception as e:
-        logging.error(f"Failed to send OTP email: {e}")
+        logging.error(f"SMTP send failed: {e}")
         return False
 
 
 async def send_otp_email(to_email: str, otp_code: str, name: str) -> bool:
+    """Try Resend first (HTTP API, works everywhere), fall back to SMTP."""
+    # Try Resend API first
+    if os.environ.get("RESEND_API_KEY"):
+        sent = await _send_via_resend(to_email, otp_code, name)
+        if sent:
+            return True
+
+    # Fall back to SMTP (works locally, not on Render free tier)
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(_thread_pool, _send_otp_email_sync, to_email, otp_code, name)
+    sent = await loop.run_in_executor(_thread_pool, _send_via_smtp_sync, to_email, otp_code, name)
+    if sent:
+        return True
+
+    logging.warning(f"No email provider configured or all failed for {to_email}")
+    return False
 
 
 # ---------- Auth Endpoints ----------
