@@ -64,7 +64,7 @@ export function AuthProvider({ children }) {
 
   const sendOtp = async (email, password, name) => {
     try {
-      const { data } = await api.post("/auth/send-otp", { email, password, name });
+      const { data } = await api.post("/auth/send-otp", { email, password, name }, { timeout: 30000 });
       return { ok: true, message: data.message };
     } catch (err) {
       return { ok: false, error: formatApiError(err) };

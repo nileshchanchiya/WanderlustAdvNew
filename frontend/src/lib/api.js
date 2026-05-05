@@ -8,6 +8,7 @@ const USE_DEMO_MODE = !BACKEND_URL || BACKEND_URL === 'undefined';
 const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
+  timeout: 15000, // 15 seconds — Render free tier can take time to wake up
   headers: { "Content-Type": "application/json" },
   adapter: USE_DEMO_MODE ? demoAdapter : undefined
 });
@@ -162,6 +163,13 @@ function demoAdapter(config) {
 }
 
 export function formatApiError(err) {
+  // Network / timeout errors (Render free tier cold start)
+  if (err?.code === "ECONNABORTED" || err?.message?.includes("timeout")) {
+    return "Server is waking up — please try again in a few seconds.";
+  }
+  if (!err?.response) {
+    return "Unable to connect to server. Please check your connection and try again.";
+  }
   const detail = err?.response?.data?.detail;
   if (detail == null) return err?.message || "Something went wrong.";
   if (typeof detail === "string") return detail;
