@@ -398,6 +398,213 @@ async def send_otp_email(to_email: str, otp_code: str, name: str) -> bool:
     return False
 
 
+# ---------- Welcome Email ----------
+def _build_welcome_html(name: str) -> str:
+    logo_url = os.environ.get("FRONTEND_URL", "https://wanderlustadventure.in") + "/wanderlust-logo.png"
+    site_url = os.environ.get("FRONTEND_URL", "https://wanderlustadventure.in")
+    return f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body style="margin: 0; padding: 0; background-color: #F7F3ED; font-family: 'Helvetica Neue', Arial, sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F7F3ED; padding: 40px 16px;">
+        <tr><td align="center">
+          <table width="520" cellpadding="0" cellspacing="0" style="max-width: 520px; width: 100%;">
+
+            <!-- Header with Logo -->
+            <tr><td style="text-align: center; padding-bottom: 32px;">
+              <img src="{logo_url}" alt="Wanderlust Adventure" width="180" style="display: inline-block; max-width: 180px; height: auto;" />
+            </td></tr>
+
+            <!-- Hero Section -->
+            <tr><td style="background: linear-gradient(135deg, #0A3D62 0%, #0E5A8A 100%); border-radius: 16px 16px 0 0; padding: 48px 36px 40px; text-align: center;">
+              <div style="font-size: 42px; margin-bottom: 16px;">🌍✈️</div>
+              <h1 style="color: #FFFFFF; font-size: 28px; font-weight: 700; margin: 0 0 12px; font-family: Georgia, serif;">
+                Welcome to the Family, {name}!
+              </h1>
+              <p style="color: #B8D4E8; font-size: 15px; margin: 0; line-height: 1.6;">
+                Your adventure begins now. We're thrilled to have you join<br/>thousands of explorers discovering incredible destinations.
+              </p>
+            </td></tr>
+
+            <!-- Main Content -->
+            <tr><td style="background: #FFFFFF; padding: 36px; border-left: 1px solid #E8E2D8; border-right: 1px solid #E8E2D8;">
+
+              <!-- What's Next Section -->
+              <h2 style="color: #0A3D62; font-size: 18px; font-weight: 600; margin: 0 0 20px; font-family: Georgia, serif;">
+                🗺️ Here's what you can do now:
+              </h2>
+
+              <!-- Feature 1 -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px;">
+                <tr>
+                  <td width="48" valign="top">
+                    <div style="width: 40px; height: 40px; background: #FFF8F0; border-radius: 10px; text-align: center; line-height: 40px; font-size: 18px;">🏔️</div>
+                  </td>
+                  <td style="padding-left: 12px; vertical-align: top;">
+                    <div style="color: #0A3D62; font-weight: 600; font-size: 14px; margin-bottom: 2px;">Explore Curated Packages</div>
+                    <div style="color: #6B7280; font-size: 13px; line-height: 1.5;">Discover hand-picked adventures across India — from the Himalayas to Kerala's backwaters.</div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Feature 2 -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px;">
+                <tr>
+                  <td width="48" valign="top">
+                    <div style="width: 40px; height: 40px; background: #FFF8F0; border-radius: 10px; text-align: center; line-height: 40px; font-size: 18px;">❤️</div>
+                  </td>
+                  <td style="padding-left: 12px; vertical-align: top;">
+                    <div style="color: #0A3D62; font-weight: 600; font-size: 14px; margin-bottom: 2px;">Save to Wishlist</div>
+                    <div style="color: #6B7280; font-size: 13px; line-height: 1.5;">Found something you love? Add it to your wishlist and come back anytime.</div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Feature 3 -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px;">
+                <tr>
+                  <td width="48" valign="top">
+                    <div style="width: 40px; height: 40px; background: #FFF8F0; border-radius: 10px; text-align: center; line-height: 40px; font-size: 18px;">📋</div>
+                  </td>
+                  <td style="padding-left: 12px; vertical-align: top;">
+                    <div style="color: #0A3D62; font-weight: 600; font-size: 14px; margin-bottom: 2px;">Plan Your Itinerary</div>
+                    <div style="color: #6B7280; font-size: 13px; line-height: 1.5;">Use our smart itinerary planner to organize your dream trip day by day.</div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Feature 4 -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                <tr>
+                  <td width="48" valign="top">
+                    <div style="width: 40px; height: 40px; background: #FFF8F0; border-radius: 10px; text-align: center; line-height: 40px; font-size: 18px;">👤</div>
+                  </td>
+                  <td style="padding-left: 12px; vertical-align: top;">
+                    <div style="color: #0A3D62; font-weight: 600; font-size: 14px; margin-bottom: 2px;">Complete Your Profile</div>
+                    <div style="color: #6B7280; font-size: 13px; line-height: 1.5;">Add your details for a personalized experience and faster bookings.</div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td align="center" style="padding: 8px 0 16px;">
+                  <a href="{site_url}/destinations" style="display: inline-block; background: linear-gradient(135deg, #D4A05A 0%, #C4903A 100%); color: #FFFFFF; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-weight: 600; font-size: 14px; letter-spacing: 0.5px;">
+                    Start Exploring →
+                  </a>
+                </td></tr>
+              </table>
+
+            </td></tr>
+
+            <!-- Divider -->
+            <tr><td style="background: #FFFFFF; padding: 0 36px; border-left: 1px solid #E8E2D8; border-right: 1px solid #E8E2D8;">
+              <div style="border-top: 1px solid #E8E2D8;"></div>
+            </td></tr>
+
+            <!-- Quick Contact -->
+            <tr><td style="background: #FFFFFF; padding: 24px 36px 32px; border-left: 1px solid #E8E2D8; border-right: 1px solid #E8E2D8;">
+              <p style="color: #6B7280; font-size: 13px; margin: 0 0 12px; text-align: center;">
+                Need help planning your trip? We're just a message away!
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="https://wa.me/918160317044" style="display: inline-block; background: #25D366; color: #FFFFFF; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-size: 13px; font-weight: 500; margin: 0 4px;">
+                      💬 WhatsApp Us
+                    </a>
+                    <a href="mailto:info@wanderlustadventure.in" style="display: inline-block; background: #F3F0EB; color: #0A3D62; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-size: 13px; font-weight: 500; margin: 0 4px;">
+                      ✉️ Email Us
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td></tr>
+
+            <!-- Social Links -->
+            <tr><td style="background: #0A3D62; padding: 28px 36px; text-align: center;">
+              <p style="color: #B8D4E8; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 16px;">Follow Our Adventures</p>
+              <table cellpadding="0" cellspacing="0" align="center">
+                <tr>
+                  <td style="padding: 0 8px;">
+                    <a href="https://www.instagram.com/wanderlustadventure.in/" style="color: #F5A623; text-decoration: none; font-size: 13px;">Instagram</a>
+                  </td>
+                  <td style="color: #2D6B96;">|</td>
+                  <td style="padding: 0 8px;">
+                    <a href="https://www.facebook.com/wanderlustadventures.in" style="color: #F5A623; text-decoration: none; font-size: 13px;">Facebook</a>
+                  </td>
+                  <td style="color: #2D6B96;">|</td>
+                  <td style="padding: 0 8px;">
+                    <a href="https://www.linkedin.com/company/wanderlustadventure" style="color: #F5A623; text-decoration: none; font-size: 13px;">LinkedIn</a>
+                  </td>
+                  <td style="color: #2D6B96;">|</td>
+                  <td style="padding: 0 8px;">
+                    <a href="https://www.threads.com/@wanderlustadventure.in" style="color: #F5A623; text-decoration: none; font-size: 13px;">Threads</a>
+                  </td>
+                </tr>
+              </table>
+            </td></tr>
+
+            <!-- Footer -->
+            <tr><td style="background: #07304F; border-radius: 0 0 16px 16px; padding: 24px 36px; text-align: center;">
+              <p style="color: #7BA3BF; font-size: 12px; margin: 0 0 4px; line-height: 1.6;">
+                📍 Everest Park, Kalawad Road, Rajkot 360005, Gujarat, India
+              </p>
+              <p style="color: #7BA3BF; font-size: 12px; margin: 0 0 4px;">
+                📞 <a href="tel:+918160317044" style="color: #7BA3BF; text-decoration: none;">+91 81603 17044</a> &nbsp;·&nbsp;
+                ✉️ <a href="mailto:info@wanderlustadventure.in" style="color: #7BA3BF; text-decoration: none;">info@wanderlustadventure.in</a>
+              </p>
+              <p style="color: #4A7A99; font-size: 11px; margin: 16px 0 0;">
+                © 2025 Wanderlust Adventure. All rights reserved.
+              </p>
+              <p style="color: #4A7A99; font-size: 11px; margin: 4px 0 0;">
+                <a href="{site_url}" style="color: #4A7A99; text-decoration: none;">wanderlustadventure.in</a>
+              </p>
+            </td></tr>
+
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+    """
+
+
+async def send_welcome_email(to_email: str, name: str) -> bool:
+    """Send a branded welcome email after successful registration."""
+    api_key = os.environ.get("RESEND_API_KEY", "")
+    from_email = os.environ.get("RESEND_FROM", "Wanderlust Adventure <noreply@wanderlustadventure.in>")
+
+    if not api_key:
+        logging.warning("RESEND_API_KEY not set — welcome email skipped")
+        return False
+
+    import httpx
+    html = _build_welcome_html(name)
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "from": from_email,
+                    "to": [to_email],
+                    "subject": f"Welcome to Wanderlust Adventure, {name}! 🌍",
+                    "html": html,
+                },
+            )
+            if resp.status_code in (200, 201):
+                logging.info(f"Welcome email sent to {to_email}")
+                return True
+            else:
+                logging.error(f"Welcome email Resend error {resp.status_code}: {resp.text}")
+                return False
+    except Exception as e:
+        logging.error(f"Welcome email failed: {e}")
+        return False
+
+
 # ---------- Auth Endpoints ----------
 @api.post("/auth/send-otp")
 async def send_otp(data: OTPSendInput):
@@ -501,6 +708,10 @@ async def verify_otp(data: OTPVerifyInput, response: Response):
 
     # Clean up
     await db.pending_otps.delete_one({"email": email})
+
+    # Trigger welcome email in background
+    import asyncio
+    asyncio.create_task(send_welcome_email(email, pending["name"]))
 
     # Issue tokens
     access = create_access_token(uid, email)
