@@ -17,6 +17,7 @@ import Signup from "@/pages/Signup";
 import MyAccount from "@/pages/MyAccount";
 import AdminDashboard from "@/pages/AdminDashboard";
 import ItineraryDetail from "@/pages/ItineraryDetail";
+import Feed from "@/pages/Feed";
 import WhatsAppFab from "@/components/WhatsAppFab";
 import { Toaster } from "sonner";
 
@@ -33,6 +34,7 @@ function App() {
               <Route path="/destinations/:slug" element={<DestinationDetail />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/feed" element={<Feed />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route

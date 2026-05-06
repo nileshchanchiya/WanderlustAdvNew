@@ -1079,6 +1079,41 @@ async def delete_destination(destination_id: str, admin: dict = Depends(require_
     return {"ok": True}
 
 
+# ---------- Social Feed integration ----------
+
+class FeedPostInput(BaseModel):
+    platform: Literal["instagram", "twitter", "custom"]
+    content: str
+    image_url: Optional[str] = None
+    link_url: Optional[str] = None
+
+@api.get("/feed")
+async def list_feed():
+    # Public — any visitor can see feed posts.
+    cursor = db.feed.find({}, {"_id": 0}).sort("created_at", -1)
+    items = await cursor.to_list(length=100)
+    return items
+
+@api.post("/admin/feed")
+async def create_feed_post(data: FeedPostInput, admin: dict = Depends(require_admin)):
+    doc = {
+        "id": str(uuid.uuid4()),
+        "created_by": str(admin["_id"]),
+        **data.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.feed.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api.delete("/admin/feed/{post_id}")
+async def delete_feed_post(post_id: str, admin: dict = Depends(require_admin)):
+    res = await db.feed.delete_one({"id": post_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return {"ok": True}
+
+
 # ---------- Google Maps integration ----------
 import httpx
 

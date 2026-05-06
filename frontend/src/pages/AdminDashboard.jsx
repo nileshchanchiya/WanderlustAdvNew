@@ -6,7 +6,7 @@ import {
   Users, BarChart3, MapPin, MessageSquare, Loader2, Trash2,
   ShieldCheck, ShieldOff, ChevronDown, ChevronUp, Mail, Phone,
   Building2, Calendar, ClipboardList, Eye, X, CheckCircle2,
-  Clock, Archive, AlertCircle
+  Clock, Archive, AlertCircle, Rss, Plus
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,6 +37,7 @@ export default function AdminDashboard() {
             { key: "overview", label: "Overview", icon: BarChart3 },
             { key: "users", label: "Users", icon: Users },
             { key: "inquiries", label: "Inquiries", icon: MessageSquare },
+            { key: "feed", label: "Feed", icon: Rss },
           ].map((t) => (
             <button
               key={t.key}
@@ -56,6 +57,7 @@ export default function AdminDashboard() {
         {activeTab === "overview" && <OverviewTab />}
         {activeTab === "users" && <UsersTab />}
         {activeTab === "inquiries" && <InquiriesTab />}
+        {activeTab === "feed" && <FeedTab />}
       </main>
       <Footer />
     </div>
@@ -425,6 +427,175 @@ function InquiriesTab() {
               </div>
             );
           })}
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ─── Feed Tab ─── */
+function FeedTab() {
+  const [posts, setPosts] = useState(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [formData, setFormData] = useState({ platform: "instagram", content: "", image_url: "", link_url: "" });
+
+  const load = useCallback(async () => {
+    try {
+      const { data } = await api.get("/feed");
+      setPosts(data);
+    } catch (e) {
+      toast.error(formatApiError(e));
+      setPosts([]);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const { data } = await api.post("/admin/feed", formData);
+      setPosts((prev) => [data, ...prev]);
+      setIsCreating(false);
+      setFormData({ platform: "instagram", content: "", image_url: "", link_url: "" });
+      toast.success("Post created successfully");
+    } catch (e) {
+      toast.error(formatApiError(e));
+    }
+  };
+
+  const deletePost = async (id) => {
+    if (!window.confirm("Delete this feed post?")) return;
+    try {
+      await api.delete(`/admin/feed/${id}`);
+      setPosts((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Post deleted");
+    } catch (e) {
+      toast.error(formatApiError(e));
+    }
+  };
+
+  if (!posts) {
+    return (
+      <div className="flex justify-center py-24">
+        <Loader2 className="h-5 w-5 animate-spin text-driftwood" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <h3 className="font-serif text-2xl font-bold text-ocean">
+          Social Feed <span className="text-driftwood font-mono text-lg">({posts.length})</span>
+        </h3>
+        <button
+          onClick={() => setIsCreating(!isCreating)}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-ocean text-white text-sm font-label font-semibold uppercase tracking-wider rounded-lg hover:bg-ocean/90 transition-colors"
+        >
+          {isCreating ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+          {isCreating ? "Cancel" : "Add Post"}
+        </button>
+      </div>
+
+      {isCreating && (
+        <form onSubmit={handleSubmit} className="bg-white border border-fog/60 rounded-xl p-6 shadow-lift mb-6">
+          <h4 className="font-serif font-bold text-lg text-ocean mb-4">Create New Post</h4>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-label font-semibold uppercase tracking-wider text-charcoal mb-1">Platform</label>
+              <select
+                required
+                value={formData.platform}
+                onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
+                className="w-full px-4 py-2 border border-fog rounded-lg text-sm focus:ring-2 focus:ring-ocean/20 focus:border-ocean outline-none"
+              >
+                <option value="instagram">Instagram</option>
+                <option value="twitter">Twitter</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-label font-semibold uppercase tracking-wider text-charcoal mb-1">Link URL (Optional)</label>
+              <input
+                type="url"
+                value={formData.link_url}
+                onChange={(e) => setFormData({ ...formData, link_url: e.target.value })}
+                placeholder="https://instagram.com/p/..."
+                className="w-full px-4 py-2 border border-fog rounded-lg text-sm focus:ring-2 focus:ring-ocean/20 focus:border-ocean outline-none"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-label font-semibold uppercase tracking-wider text-charcoal mb-1">Content</label>
+              <textarea
+                required
+                rows={3}
+                value={formData.content}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                placeholder="Write your update here..."
+                className="w-full px-4 py-2 border border-fog rounded-lg text-sm focus:ring-2 focus:ring-ocean/20 focus:border-ocean outline-none resize-none"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-label font-semibold uppercase tracking-wider text-charcoal mb-1">Image URL (Optional)</label>
+              <input
+                type="url"
+                value={formData.image_url}
+                onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                placeholder="https://example.com/image.jpg"
+                className="w-full px-4 py-2 border border-fog rounded-lg text-sm focus:ring-2 focus:ring-ocean/20 focus:border-ocean outline-none"
+              />
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end">
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-gold hover:bg-gold-soft text-ocean text-sm font-label font-semibold uppercase tracking-wider rounded-lg transition-colors"
+            >
+              Publish Post
+            </button>
+          </div>
+        </form>
+      )}
+
+      {posts.length === 0 ? (
+        <div className="text-center py-16 text-driftwood">No posts in feed yet.</div>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {posts.map((post) => (
+            <div key={post.id} className="bg-white border border-fog/60 rounded-xl overflow-hidden shadow-lift flex flex-col">
+              {post.image_url && (
+                <div className="aspect-video w-full bg-sand/30">
+                  <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className="p-5 flex-1 flex flex-col">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-label font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border border-fog bg-sand/20">
+                    {post.platform}
+                  </span>
+                  <span className="text-xs text-driftwood">
+                    {new Date(post.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-sm text-charcoal mb-4 flex-1 whitespace-pre-wrap line-clamp-4">{post.content}</p>
+                <div className="flex items-center justify-between mt-auto pt-4 border-t border-fog/60">
+                  {post.link_url ? (
+                    <a href={post.link_url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-ocean hover:text-gold transition-colors">
+                      View Original
+                    </a>
+                  ) : <div />}
+                  <button
+                    onClick={() => deletePost(post.id)}
+                    className="text-red-500 hover:text-red-700 p-1 rounded-md hover:bg-red-50 transition-colors"
+                    title="Delete post"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </>
