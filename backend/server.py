@@ -348,6 +348,36 @@ async def _send_via_resend(to_email: str, otp_code: str, name: str) -> bool:
         return False
 
 
+async def send_resend_event(event_name: str, email: str, payload: dict = None) -> bool:
+    """Send an event to Resend to trigger automations."""
+    api_key = os.environ.get("RESEND_API_KEY", "")
+    if not api_key:
+        logging.warning("RESEND_API_KEY not set — resend event skipped")
+        return False
+
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                "https://api.resend.com/events",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "event": event_name,
+                    "email": email,
+                    "payload": payload or {}
+                },
+            )
+            if resp.status_code in (200, 201):
+                logging.info(f"Resend event '{event_name}' sent for {email}")
+                return True
+            else:
+                logging.error(f"Failed to send resend event: {resp.status_code} {resp.text}")
+                return False
+    except Exception as e:
+        logging.error(f"Error sending resend event: {e}")
+        return False
+
+
 def _send_via_smtp_sync(to_email: str, otp_code: str, name: str) -> bool:
     """Fallback: send OTP email via SMTP (works locally, blocked on Render free tier)."""
     smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
@@ -709,9 +739,10 @@ async def verify_otp(data: OTPVerifyInput, response: Response):
     # Clean up
     await db.pending_otps.delete_one({"email": email})
 
-    # Trigger welcome email in background
-    import asyncio
+    # Send welcome email asynchronously to not block the response
     asyncio.create_task(send_welcome_email(email, pending["name"]))
+    # Trigger Resend Automation Event
+    asyncio.create_task(send_resend_event("user.created", email, {"name": pending["name"]}))
 
     # Issue tokens
     access = create_access_token(uid, email)
