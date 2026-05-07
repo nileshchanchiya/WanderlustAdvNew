@@ -9,8 +9,8 @@ import {
   Clock, Archive, AlertCircle, Rss, Plus, FileText, Edit2
 } from "lucide-react";
 import { toast } from "sonner";
-import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 const STATUS_STYLES = {
   new: { bg: "bg-blue-50 text-blue-700 border-blue-200", icon: AlertCircle, label: "New" },
