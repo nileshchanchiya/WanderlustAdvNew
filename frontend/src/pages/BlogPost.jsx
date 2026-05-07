@@ -126,13 +126,16 @@ export default function BlogPost() {
           {/* We use a specific div with "prose" classes if tailwind typography was installed.
               Since we are using custom styling, we'll style the raw HTML explicitly. */}
           <div 
-            className="font-body text-lg text-charcoal leading-relaxed space-y-6 
-                       [&>p]:mb-6 
+            className="font-body text-lg text-charcoal leading-relaxed space-y-6 break-words
+                       [&>*]:break-words
+                       [&>p]:mb-6 [&>p]:whitespace-pre-wrap
                        [&>h2]:font-display [&>h2]:text-3xl [&>h2]:font-bold [&>h2]:text-ocean [&>h2]:mt-12 [&>h2]:mb-6
                        [&>h3]:font-display [&>h3]:text-2xl [&>h3]:font-bold [&>h3]:text-ocean [&>h3]:mt-10 [&>h3]:mb-4
                        [&>ul]:list-disc [&>ul]:pl-6 [&>ul]:mb-6 [&>ul>li]:mb-2
                        [&>ol]:list-decimal [&>ol]:pl-6 [&>ol]:mb-6 [&>ol>li]:mb-2
                        [&>blockquote]:border-l-4 [&>blockquote]:border-gold [&>blockquote]:pl-6 [&>blockquote]:italic [&>blockquote]:text-charcoal/80 [&>blockquote]:my-8
+                       [&>pre]:bg-fog/30 [&>pre]:p-4 [&>pre]:rounded-xl [&>pre]:overflow-x-auto [&>pre]:whitespace-pre-wrap [&>pre]:text-sm
+                       [&>code]:bg-fog/30 [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded-md [&>code]:text-sm
                        [&>img]:rounded-xl [&>img]:shadow-lift [&>img]:my-10 [&>img]:w-full
                        [&>a]:text-ocean [&>a]:underline [&>a]:underline-offset-4 hover:[&>a]:text-gold transition-colors"
             dangerouslySetInnerHTML={{ __html: blog.content }} 
