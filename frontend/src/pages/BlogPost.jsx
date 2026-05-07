@@ -101,7 +101,9 @@ export default function BlogPost() {
               </div>
               <button 
                 onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
+                  const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
+                  const shareUrl = backendUrl ? `${backendUrl}/blog/${slug}` : window.location.href;
+                  navigator.clipboard.writeText(shareUrl);
                   alert("Link copied to clipboard!");
                 }}
                 className="flex items-center gap-2 hover:text-ocean transition-colors ml-auto"

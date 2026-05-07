@@ -8,9 +8,19 @@
     ],
     "rewrites": [
       {
+        "source": "/blog/**",
+        "function": "serveBlogWithSEO"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
+    ]
+  },
+  "functions": {
+    "source": "functions",
+    "predeploy": [
+      "cp frontend/build/index.html functions/index.html"
     ]
   }
 }

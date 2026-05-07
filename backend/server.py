@@ -22,12 +22,16 @@ import bcrypt
 import jwt
 import certifi
 import shutil
+import json
 from bson import ObjectId
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
+
+import firebase_admin
+from firebase_admin import credentials, auth as firebase_auth
 
 
 # ---------- Config ----------
@@ -45,6 +49,27 @@ OTP_RATE_WINDOW_MIN = 15
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url, tlsCAFile=certifi.where())
 db = client[os.environ["DB_NAME"]]
+
+# ---------- Firebase Init ----------
+firebase_json_str = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON")
+firebase_path = os.environ.get("FIREBASE_SERVICE_ACCOUNT_PATH")
+
+try:
+    if firebase_json_str:
+        cred_dict = json.loads(firebase_json_str)
+        cred = credentials.Certificate(cred_dict)
+        firebase_admin.initialize_app(cred)
+    elif firebase_path and os.path.exists(firebase_path):
+        cred = credentials.Certificate(firebase_path)
+        firebase_admin.initialize_app(cred)
+    else:
+        firebase_admin.initialize_app()
+except ValueError as e:
+    # App already initialized
+    pass
+except Exception as e:
+    print("Firebase admin init failed:", e)
+
 
 app = FastAPI(title="Itinera API")
 api = APIRouter(prefix="/api")
@@ -165,18 +190,46 @@ async def get_current_user(request: Request) -> dict:
             token = header[7:]
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    
     try:
-        payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
-        if payload.get("type") != "access":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-        user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
+        decoded_token = firebase_auth.verify_id_token(token)
+        uid = decoded_token['uid']
+        
+        user = await db.users.find_one({"firebase_uid": uid})
         if not user:
-            raise HTTPException(status_code=401, detail="User not found")
+            # Check by email or phone to link existing account
+            email = decoded_token.get("email")
+            phone = decoded_token.get("phone_number")
+            query = []
+            if email: query.append({"email": email})
+            if phone: query.append({"phone": phone})
+            
+            if query:
+                user = await db.users.find_one({"$or": query})
+            
+            if user:
+                # Link account
+                await db.users.update_one({"_id": user["_id"]}, {"$set": {"firebase_uid": uid}})
+                user["firebase_uid"] = uid
+            else:
+                # Create new account
+                new_user = {
+                    "firebase_uid": uid,
+                    "email": email or "",
+                    "phone": phone or "",
+                    "name": decoded_token.get("name", "Wanderer"),
+                    "profile_image": decoded_token.get("picture", ""),
+                    "role": "user",
+                    "created_at": datetime.now(timezone.utc)
+                }
+                res = await db.users.insert_one(new_user)
+                new_user["_id"] = res.inserted_id
+                user = new_user
+                
         return user
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        print("Firebase auth error:", e)
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
 async def require_admin(user: dict = Depends(get_current_user)) -> dict:
@@ -1139,17 +1192,23 @@ async def delete_blog(blog_id: str, admin: dict = Depends(require_admin)):
 
 @api.post("/admin/upload")
 async def upload_file(request: Request, file: UploadFile = File(...), admin: dict = Depends(require_admin)):
-    # Generate a unique filename
+    from firebase_admin import storage
+    
     ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
-    filename = f"{uuid.uuid4().hex}.{ext}"
-    file_path = UPLOAD_DIR / filename
+    filename = f"uploads/{uuid.uuid4().hex}.{ext}"
+    contents = await file.read()
     
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    def _upload():
+        bucket = storage.bucket("wanderlust-adventure-81e8b.firebasestorage.app")
+        blob = bucket.blob(filename)
+        blob.upload_from_string(contents, content_type=file.content_type)
+        blob.make_public()
+        return blob.public_url
+
+    loop = asyncio.get_event_loop()
+    url = await loop.run_in_executor(_thread_pool, _upload)
     
-    # Return full URL
-    base_url = str(request.base_url).rstrip("/")
-    return {"url": f"{base_url}/uploads/{filename}"}
+    return {"url": url}
 
 
 # ---------- Social Feed integration ----------
@@ -1465,6 +1524,86 @@ async def root():
 
 # mount router
 app.include_router(api)
+
+
+# ---------- OG Meta Tags for Social Sharing ----------
+from fastapi.responses import HTMLResponse
+from html import escape as html_escape
+
+KNOWN_BOTS = [
+    "facebookexternalhit", "Facebot", "Twitterbot", "WhatsApp",
+    "LinkedInBot", "Slackbot", "TelegramBot", "Pinterest",
+    "Discordbot", "Googlebot", "bingbot",
+]
+
+def _is_crawler(user_agent: str) -> bool:
+    ua = user_agent.lower()
+    return any(bot.lower() in ua for bot in KNOWN_BOTS)
+
+
+@app.get("/blog/{slug}", response_class=HTMLResponse)
+async def og_blog_page(slug: str, request: Request):
+    """
+    Serves an HTML page with proper OG meta tags for social sharing.
+    - Crawlers (WhatsApp, FB, Twitter, etc.) get the OG-enriched HTML.
+    - Real browsers get a JavaScript redirect to the SPA frontend.
+    """
+    frontend_url = os.environ.get("FRONTEND_URL", "https://wanderlustadventure.in")
+    canonical_url = f"{frontend_url}/blog/{slug}"
+
+    # Fetch the blog from MongoDB
+    blog = await db.blogs.find_one({"slug": slug, "published": True}, {"_id": 0})
+
+    if not blog:
+        # Blog not found — redirect to frontend (which will show 404)
+        return HTMLResponse(
+            content=f'<html><head><meta http-equiv="refresh" content="0;url={canonical_url}"></head></html>',
+            status_code=200
+        )
+
+    title = html_escape(blog.get("title", "Wanderlust Adventure Blog"))
+    excerpt = html_escape(blog.get("excerpt", blog.get("title", "")))
+    cover = blog.get("cover_image_url", f"{frontend_url}/og-image.png")
+    site_name = "Wanderlust Adventure"
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>{title} | {site_name}</title>
+    <meta name="description" content="{excerpt}"/>
+
+    <!-- Open Graph / Facebook / WhatsApp -->
+    <meta property="og:type" content="article"/>
+    <meta property="og:site_name" content="{site_name}"/>
+    <meta property="og:title" content="{title}"/>
+    <meta property="og:description" content="{excerpt}"/>
+    <meta property="og:url" content="{canonical_url}"/>
+    <meta property="og:image" content="{cover}"/>
+    <meta property="og:image:width" content="1200"/>
+    <meta property="og:image:height" content="630"/>
+    <meta property="og:locale" content="en_IN"/>
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:title" content="{title}"/>
+    <meta name="twitter:description" content="{excerpt}"/>
+    <meta name="twitter:image" content="{cover}"/>
+
+    <link rel="canonical" href="{canonical_url}"/>
+
+    <!-- Redirect real browsers to the SPA -->
+    <script>window.location.replace("{canonical_url}");</script>
+    <meta http-equiv="refresh" content="0;url={canonical_url}"/>
+</head>
+<body>
+    <h1>{title}</h1>
+    <p>{excerpt}</p>
+    <p><a href="{canonical_url}">Read full article on {site_name}</a></p>
+</body>
+</html>"""
+
+    return HTMLResponse(content=html, status_code=200)
 
 # CORS
 frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")

@@ -1,19 +1,11 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber, signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import api, { formatApiError } from "@/lib/api";
 
 const AuthContext = createContext(null);
 
 /* ── Token helpers ── */
-function saveTokens(access, refresh) {
-  if (access) localStorage.setItem("access_token", access);
-  if (refresh) localStorage.setItem("refresh_token", refresh);
-}
-
-function clearTokens() {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-}
-
 export function getAccessToken() {
   return localStorage.getItem("access_token");
 }
@@ -26,70 +18,76 @@ export function AuthProvider({ children }) {
   // null = checking, false = unauthenticated, object = user
   const [user, setUser] = useState(null);
 
-  const checkSession = useCallback(async () => {
-    try {
-      const { data } = await api.get("/auth/me");
-      setUser(data);
-    } catch {
-      setUser(false);
-    }
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const token = await firebaseUser.getIdToken();
+          localStorage.setItem("access_token", token);
+          // Sync with backend to get full profile or create it
+          const { data } = await api.get("/auth/me");
+          setUser(data);
+        } catch (err) {
+          console.error("Error syncing user with backend:", err);
+          setUser(false);
+        }
+      } else {
+        localStorage.removeItem("access_token");
+        setUser(false);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    checkSession();
-  }, [checkSession]);
-
-  const login = async (email, password) => {
+  const loginWithGoogle = async () => {
     try {
-      const { data } = await api.post("/auth/login", { email, password });
-      // Save tokens from response body (works even when cookies are blocked)
-      saveTokens(data.access_token, data.refresh_token);
-      setUser(data);
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: formatApiError(err) };
+      return { ok: false, error: err.message };
     }
   };
 
-  const register = async (email, password, name) => {
-    try {
-      const { data } = await api.post("/auth/register", { email, password, name });
-      saveTokens(data.access_token, data.refresh_token);
-      setUser(data);
-      return { ok: true };
-    } catch (err) {
-      return { ok: false, error: formatApiError(err) };
+  const setupRecaptcha = (containerId) => {
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
+        size: 'invisible' // or 'normal'
+      });
     }
   };
 
-  const sendOtp = async (email, password, name) => {
+  const loginWithPhone = async (phoneNumber, containerId) => {
     try {
-      const { data } = await api.post("/auth/send-otp", { email, password, name }, { timeout: 30000 });
-      return { ok: true, message: data.message };
+      setupRecaptcha(containerId);
+      const appVerifier = window.recaptchaVerifier;
+      const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+      window.confirmationResult = confirmationResult;
+      return { ok: true };
     } catch (err) {
-      return { ok: false, error: formatApiError(err) };
+      return { ok: false, error: err.message };
     }
   };
 
-  const verifyOtp = async (email, otp) => {
+  const verifyOtp = async (otp) => {
     try {
-      const { data } = await api.post("/auth/verify-otp", { email, otp });
-      saveTokens(data.access_token, data.refresh_token);
-      setUser(data);
+      if (!window.confirmationResult) throw new Error("No pending OTP request.");
+      await window.confirmationResult.confirm(otp);
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: formatApiError(err) };
+      return { ok: false, error: err.message };
     }
   };
 
   const logout = async () => {
     try {
-      await api.post("/auth/logout");
-    } catch {
-      /* ignore */
+      await signOut(auth);
+      localStorage.removeItem("access_token");
+      setUser(false);
+    } catch (err) {
+      console.error("Logout error", err);
     }
-    clearTokens();
-    setUser(false);
   };
 
   const updateProfile = async (data) => {
@@ -99,7 +97,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, sendOtp, verifyOtp, logout, checkSession, updateProfile }}>
+    <AuthContext.Provider value={{ user, loginWithGoogle, loginWithPhone, verifyOtp, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
