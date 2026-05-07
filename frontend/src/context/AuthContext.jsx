@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile as fbUpdateProfile } from "firebase/auth";
+import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile as fbUpdateProfile, sendEmailVerification } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import api, { formatApiError } from "@/lib/api";
 
@@ -21,8 +21,15 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        // For email/password users, check if email is verified
+        const isEmailProvider = firebaseUser.providerData.some(p => p.providerId === "password");
+        if (isEmailProvider && !firebaseUser.emailVerified) {
+          // User signed up with email but hasn't verified yet
+          setUser({ _pendingVerification: true, email: firebaseUser.email });
+          return;
+        }
         try {
-          const token = await firebaseUser.getIdToken();
+          const token = await firebaseUser.getIdToken(true);
           localStorage.setItem("access_token", token);
           // Sync with backend to get full profile or create it
           const { data } = await api.get("/auth/me");
@@ -96,7 +103,37 @@ export function AuthProvider({ children }) {
       if (name) {
         await fbUpdateProfile(cred.user, { displayName: name });
       }
+      await sendEmailVerification(cred.user);
+      return { ok: true, pendingVerification: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  };
+
+  const resendVerification = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("No user signed in.");
+      await sendEmailVerification(currentUser);
       return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  };
+
+  const checkEmailVerified = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("No user signed in.");
+      await currentUser.reload();
+      if (currentUser.emailVerified) {
+        const token = await currentUser.getIdToken(true);
+        localStorage.setItem("access_token", token);
+        const { data } = await api.get("/auth/me");
+        setUser(data);
+        return { ok: true };
+      }
+      return { ok: false, error: "Email not yet verified." };
     } catch (err) {
       return { ok: false, error: err.message };
     }
@@ -118,7 +155,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loginWithGoogle, loginWithPhone, loginWithEmail, signupWithEmail, verifyOtp, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, loginWithGoogle, loginWithPhone, loginWithEmail, signupWithEmail, verifyOtp, logout, updateProfile, resendVerification, checkEmailVerified }}>
       {children}
     </AuthContext.Provider>
   );
