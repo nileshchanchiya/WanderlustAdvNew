@@ -2,13 +2,40 @@ import React, { useState } from "react";
 import { Link, useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import Seo from "@/components/Seo";
-import { Compass, Loader2, Phone, Mail } from "lucide-react";
+import { Compass, Loader2, Phone, Mail, ChevronDown } from "lucide-react";
+
+const COUNTRY_CODES = [
+  { code: "+91", flag: "🇮🇳", name: "India" },
+  { code: "+1", flag: "🇺🇸", name: "USA" },
+  { code: "+44", flag: "🇬🇧", name: "UK" },
+  { code: "+971", flag: "🇦🇪", name: "UAE" },
+  { code: "+65", flag: "🇸🇬", name: "Singapore" },
+  { code: "+61", flag: "🇦🇺", name: "Australia" },
+  { code: "+81", flag: "🇯🇵", name: "Japan" },
+  { code: "+49", flag: "🇩🇪", name: "Germany" },
+  { code: "+33", flag: "🇫🇷", name: "France" },
+  { code: "+39", flag: "🇮🇹", name: "Italy" },
+  { code: "+86", flag: "🇨🇳", name: "China" },
+  { code: "+82", flag: "🇰🇷", name: "South Korea" },
+  { code: "+66", flag: "🇹🇭", name: "Thailand" },
+  { code: "+60", flag: "🇲🇾", name: "Malaysia" },
+  { code: "+977", flag: "🇳🇵", name: "Nepal" },
+  { code: "+94", flag: "🇱🇰", name: "Sri Lanka" },
+  { code: "+880", flag: "🇧🇩", name: "Bangladesh" },
+  { code: "+92", flag: "🇵🇰", name: "Pakistan" },
+  { code: "+27", flag: "🇿🇦", name: "South Africa" },
+  { code: "+55", flag: "🇧🇷", name: "Brazil" },
+];
 
 export default function Login() {
-  const { loginWithGoogle, loginWithPhone, verifyOtp, user } = useAuth();
+  const { loginWithGoogle, loginWithPhone, loginWithEmail, verifyOtp, user } = useAuth();
+  const [authMode, setAuthMode] = useState("phone"); // "phone" | "email"
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [countryCode, setCountryCode] = useState("+91");
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState(1); // 1 = phone input, 2 = otp input
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -28,9 +55,8 @@ export default function Login() {
     e.preventDefault();
     setErr("");
     setLoading(true);
-    // Add + prefix if missing (basic validation, assume +1 or user inputs full code)
-    const formattedPhone = phoneNumber.startsWith("+") ? phoneNumber : `+${phoneNumber}`;
-    const res = await loginWithPhone(formattedPhone, "recaptcha-container");
+    const fullPhone = `${countryCode}${phoneNumber}`;
+    const res = await loginWithPhone(fullPhone, "recaptcha-container");
     setLoading(false);
     if (!res.ok) {
       setErr(res.error);
@@ -44,6 +70,19 @@ export default function Login() {
     setErr("");
     setLoading(true);
     const res = await verifyOtp(otp);
+    setLoading(false);
+    if (!res.ok) {
+      setErr(res.error);
+    } else {
+      navigate("/account");
+    }
+  };
+
+  const handleEmailLogin = async (e) => {
+    e.preventDefault();
+    setErr("");
+    setLoading(true);
+    const res = await loginWithEmail(email, password);
     setLoading(false);
     if (!res.ok) {
       setErr(res.error);
@@ -105,24 +144,134 @@ export default function Login() {
               Continue with Google
             </button>
 
+            {/* Mode Toggle */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-ink-200"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-ink-0 text-ink-500">Or continue with Phone</span>
+                <span className="px-2 bg-ink-0 text-ink-500">Or continue with</span>
               </div>
             </div>
 
-            {step === 1 ? (
-              <form onSubmit={handlePhoneSubmit} className="space-y-4">
+            <div className="flex bg-ink-100 rounded-lg p-1 gap-1">
+              <button
+                type="button"
+                onClick={() => { setAuthMode("phone"); setErr(""); }}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-all ${authMode === "phone" ? "bg-white shadow-sm text-ink-900" : "text-ink-500 hover:text-ink-700"}`}
+              >
+                <Phone className="h-3.5 w-3.5" /> Phone
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAuthMode("email"); setErr(""); }}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-all ${authMode === "email" ? "bg-white shadow-sm text-ink-900" : "text-ink-500 hover:text-ink-700"}`}
+              >
+                <Mail className="h-3.5 w-3.5" /> Email
+              </button>
+            </div>
+
+            {authMode === "phone" ? (
+              <>
+                {step === 1 ? (
+                  <form onSubmit={handlePhoneSubmit} className="space-y-4">
+                    <div>
+                      <label className="label-caps mb-2 block">Phone Number</label>
+                      <div className="flex gap-2">
+                        <div className="relative">
+                          <select
+                            value={countryCode}
+                            onChange={(e) => setCountryCode(e.target.value)}
+                            className="appearance-none bg-white border border-ink-200 rounded-md pl-3 pr-8 py-2.5 focus:ring-2 focus:ring-terracotta/20 focus:border-terracotta outline-none transition-all text-sm font-medium w-[110px]"
+                          >
+                            {COUNTRY_CODES.map(c => (
+                              <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400 pointer-events-none" />
+                        </div>
+                        <input
+                          type="tel"
+                          value={phoneNumber}
+                          placeholder="9876543210"
+                          onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                          required
+                          className="flex-1 bg-white border border-ink-200 rounded-md px-3 py-2.5 focus:ring-2 focus:ring-terracotta/20 focus:border-terracotta outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+                    {err && (
+                      <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                        {err}
+                      </div>
+                    )}
+                    <div id="recaptcha-container"></div>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-terracotta hover:bg-terracotta-hover text-white rounded-lg px-6 py-2.5 font-medium transition-colors disabled:opacity-60"
+                    >
+                      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                      <Phone className="h-4 w-4" />
+                      Send Verification Code
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleOtpSubmit} className="space-y-4">
+                    <div>
+                      <label className="label-caps mb-2 block">Verification Code</label>
+                      <input
+                        type="text"
+                        value={otp}
+                        placeholder="123456"
+                        onChange={(e) => setOtp(e.target.value)}
+                        required
+                        className="w-full bg-white border border-ink-200 rounded-md px-3 py-2.5 focus:ring-2 focus:ring-terracotta/20 focus:border-terracotta outline-none transition-all tracking-widest text-center text-xl"
+                      />
+                    </div>
+                    {err && (
+                      <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                        {err}
+                      </div>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-terracotta hover:bg-terracotta-hover text-white rounded-lg px-6 py-2.5 font-medium transition-colors disabled:opacity-60"
+                    >
+                      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Verify Code
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className="w-full text-sm text-ink-500 hover:text-ink-900 mt-2"
+                    >
+                      Change phone number
+                    </button>
+                  </form>
+                )}
+              </>
+            ) : (
+              <form onSubmit={handleEmailLogin} className="space-y-4">
                 <div>
-                  <label className="label-caps mb-2 block">Phone Number (with Country Code)</label>
+                  <label className="label-caps mb-2 block">Email</label>
                   <input
-                    type="tel"
-                    value={phoneNumber}
-                    placeholder="+1234567890"
-                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    type="email"
+                    value={email}
+                    placeholder="you@example.com"
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full bg-white border border-ink-200 rounded-md px-3 py-2.5 focus:ring-2 focus:ring-terracotta/20 focus:border-terracotta outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="label-caps mb-2 block">Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    placeholder="Your password"
+                    onChange={(e) => setPassword(e.target.value)}
                     required
                     className="w-full bg-white border border-ink-200 rounded-md px-3 py-2.5 focus:ring-2 focus:ring-terracotta/20 focus:border-terracotta outline-none transition-all"
                   />
@@ -132,53 +281,25 @@ export default function Login() {
                     {err}
                   </div>
                 )}
-                <div id="recaptcha-container"></div>
                 <button
                   type="submit"
                   disabled={loading}
                   className="w-full inline-flex items-center justify-center gap-2 bg-terracotta hover:bg-terracotta-hover text-white rounded-lg px-6 py-2.5 font-medium transition-colors disabled:opacity-60"
                 >
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  <Phone className="h-4 w-4" />
-                  Send Verification Code
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleOtpSubmit} className="space-y-4">
-                <div>
-                  <label className="label-caps mb-2 block">Verification Code</label>
-                  <input
-                    type="text"
-                    value={otp}
-                    placeholder="123456"
-                    onChange={(e) => setOtp(e.target.value)}
-                    required
-                    className="w-full bg-white border border-ink-200 rounded-md px-3 py-2.5 focus:ring-2 focus:ring-terracotta/20 focus:border-terracotta outline-none transition-all tracking-widest text-center text-xl"
-                  />
-                </div>
-                {err && (
-                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
-                    {err}
-                  </div>
-                )}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-terracotta hover:bg-terracotta-hover text-white rounded-lg px-6 py-2.5 font-medium transition-colors disabled:opacity-60"
-                >
-                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Verify Code
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="w-full text-sm text-ink-500 hover:text-ink-900 mt-2"
-                >
-                  Change phone number
+                  <Mail className="h-4 w-4" />
+                  Log In
                 </button>
               </form>
             )}
           </div>
+
+          <p className="mt-8 text-sm text-ink-500">
+            Don't have an account?{" "}
+            <Link to="/signup" className="text-terracotta font-medium hover:underline">
+              Sign up
+            </Link>
+          </p>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber, signOut } from "firebase/auth";
+import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile as fbUpdateProfile } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import api, { formatApiError } from "@/lib/api";
 
@@ -90,6 +90,27 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const signupWithEmail = async (email, password, name) => {
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      if (name) {
+        await fbUpdateProfile(cred.user, { displayName: name });
+      }
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  };
+
+  const loginWithEmail = async (email, password) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  };
+
   const updateProfile = async (data) => {
     const { data: updated } = await api.put("/auth/profile", data);
     setUser(updated);
@@ -97,7 +118,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loginWithGoogle, loginWithPhone, verifyOtp, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, loginWithGoogle, loginWithPhone, loginWithEmail, signupWithEmail, verifyOtp, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
