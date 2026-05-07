@@ -694,7 +694,9 @@ function BlogsTab() {
     e.preventDefault();
     const payload = {
       ...currentBlog,
-      tags: currentBlog.tags && typeof currentBlog.tags === 'string' ? currentBlog.tags.split(",").map(t => t.trim()) : currentBlog.tags,
+      tags: typeof currentBlog.tags === 'string' 
+        ? currentBlog.tags.split(",").map(t => t.trim()).filter(Boolean) 
+        : (currentBlog.tags || []),
     };
     if (!payload.slug) {
       payload.slug = generateSlug(payload.title);
