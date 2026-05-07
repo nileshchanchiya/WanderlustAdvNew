@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import api, { formatApiError } from "@/lib/api";
@@ -6,9 +6,11 @@ import {
   Users, BarChart3, MapPin, MessageSquare, Loader2, Trash2,
   ShieldCheck, ShieldOff, ChevronDown, ChevronUp, Mail, Phone,
   Building2, Calendar, ClipboardList, Eye, X, CheckCircle2,
-  Clock, Archive, AlertCircle, Rss, Plus
+  Clock, Archive, AlertCircle, Rss, Plus, FileText, Edit2
 } from "lucide-react";
 import { toast } from "sonner";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
 const STATUS_STYLES = {
   new: { bg: "bg-blue-50 text-blue-700 border-blue-200", icon: AlertCircle, label: "New" },
@@ -38,6 +40,7 @@ export default function AdminDashboard() {
             { key: "users", label: "Users", icon: Users },
             { key: "inquiries", label: "Inquiries", icon: MessageSquare },
             { key: "feed", label: "Feed", icon: Rss },
+            { key: "blogs", label: "Blogs", icon: FileText },
           ].map((t) => (
             <button
               key={t.key}
@@ -58,6 +61,7 @@ export default function AdminDashboard() {
         {activeTab === "users" && <UsersTab />}
         {activeTab === "inquiries" && <InquiriesTab />}
         {activeTab === "feed" && <FeedTab />}
+        {activeTab === "blogs" && <BlogsTab />}
       </main>
       <Footer />
     </div>
@@ -598,6 +602,269 @@ function FeedTab() {
           ))}
         </div>
       )}
+    </>
+  );
+}
+
+/* ─── Blogs Tab ─── */
+function BlogsTab() {
+  const [blogs, setBlogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentBlog, setCurrentBlog] = useState({
+    title: "", slug: "", content: "", excerpt: "", cover_image_url: "", tags: "", published: false
+  });
+  
+  const quillRef = useRef(null);
+
+  const imageHandler = useCallback(() => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    input.onchange = async () => {
+      const file = input.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const { data } = await api.post('/admin/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        const quill = quillRef.current.getEditor();
+        const range = quill.getSelection(true);
+        quill.insertEmbed(range.index, 'image', data.url);
+      } catch (e) {
+        toast.error('Image upload failed');
+      }
+    };
+  }, []);
+
+  const modules = useMemo(() => ({
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+        [{'list': 'ordered'}, {'list': 'bullet'}],
+        ['link', 'image'],
+        ['clean']
+      ],
+      handlers: {
+        image: imageHandler
+      }
+    }
+  }), [imageHandler]);
+
+  const handleCoverImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const { data } = await api.post('/admin/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setCurrentBlog(prev => ({ ...prev, cover_image_url: data.url }));
+      toast.success('Cover image uploaded');
+    } catch (err) {
+      toast.error('Failed to upload cover image');
+    }
+  };
+
+  const loadBlogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get("/admin/blogs");
+      setBlogs(data);
+    } catch (e) {
+      toast.error(formatApiError(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadBlogs(); }, [loadBlogs]);
+
+  const generateSlug = (title) => {
+    return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    const payload = {
+      ...currentBlog,
+      tags: currentBlog.tags && typeof currentBlog.tags === 'string' ? currentBlog.tags.split(",").map(t => t.trim()) : currentBlog.tags,
+    };
+    if (!payload.slug) {
+      payload.slug = generateSlug(payload.title);
+    }
+    try {
+      if (currentBlog.id) {
+        await api.put(`/admin/blogs/${currentBlog.id}`, payload);
+        toast.success("Blog updated");
+      } else {
+        await api.post("/admin/blogs", payload);
+        toast.success("Blog created");
+      }
+      setIsEditing(false);
+      loadBlogs();
+    } catch (e) {
+      toast.error(formatApiError(e));
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this blog post?")) return;
+    try {
+      await api.delete(`/admin/blogs/${id}`);
+      toast.success("Blog deleted");
+      loadBlogs();
+    } catch (e) {
+      toast.error(formatApiError(e));
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div className="bg-white border border-fog/60 rounded-xl p-6 shadow-lift">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-display font-bold text-ocean">
+            {currentBlog.id ? "Edit Blog Post" : "New Blog Post"}
+          </h2>
+          <button onClick={() => setIsEditing(false)} className="text-driftwood hover:text-charcoal p-2">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSave} className="space-y-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-label font-semibold uppercase tracking-wider text-charcoal mb-2">Title</label>
+              <input required type="text" className="w-full bg-sand/30 border border-fog rounded-lg px-4 py-2.5 focus:outline-none focus:border-ocean transition-colors" value={currentBlog.title} onChange={e => setCurrentBlog({ ...currentBlog, title: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-label font-semibold uppercase tracking-wider text-charcoal mb-2">Slug (SEO URL)</label>
+              <input type="text" className="w-full bg-sand/30 border border-fog rounded-lg px-4 py-2.5 focus:outline-none focus:border-ocean transition-colors" value={currentBlog.slug} onChange={e => setCurrentBlog({ ...currentBlog, slug: e.target.value })} placeholder="Leave blank to auto-generate" />
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-label font-semibold uppercase tracking-wider text-charcoal mb-2">Cover Image</label>
+              <div className="flex gap-2">
+                <input type="url" className="w-full bg-sand/30 border border-fog rounded-lg px-4 py-2.5 focus:outline-none focus:border-ocean transition-colors" value={currentBlog.cover_image_url || ""} onChange={e => setCurrentBlog({ ...currentBlog, cover_image_url: e.target.value })} placeholder="Image URL or upload" />
+                <label className="flex-shrink-0 cursor-pointer px-4 py-2.5 bg-ocean text-white font-label text-sm uppercase tracking-wider rounded-lg hover:bg-ocean/90 transition-colors flex items-center">
+                  Upload
+                  <input type="file" className="hidden" accept="image/*" onChange={handleCoverImageUpload} />
+                </label>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-label font-semibold uppercase tracking-wider text-charcoal mb-2">Tags (Comma separated)</label>
+              <input type="text" className="w-full bg-sand/30 border border-fog rounded-lg px-4 py-2.5 focus:outline-none focus:border-ocean transition-colors" value={Array.isArray(currentBlog.tags) ? currentBlog.tags.join(', ') : currentBlog.tags} onChange={e => setCurrentBlog({ ...currentBlog, tags: e.target.value })} placeholder="travel, tips, guide" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-label font-semibold uppercase tracking-wider text-charcoal mb-2">Excerpt (SEO Meta Description)</label>
+            <textarea rows={2} className="w-full bg-sand/30 border border-fog rounded-lg px-4 py-2.5 focus:outline-none focus:border-ocean transition-colors" value={currentBlog.excerpt || ""} onChange={e => setCurrentBlog({ ...currentBlog, excerpt: e.target.value })} maxLength={160}></textarea>
+          </div>
+
+          <div className="bg-white">
+            <label className="block text-sm font-label font-semibold uppercase tracking-wider text-charcoal mb-2">Content (WYSIWYG)</label>
+            <ReactQuill ref={quillRef} modules={modules} theme="snow" value={currentBlog.content} onChange={(val) => setCurrentBlog({ ...currentBlog, content: val })} className="h-64 mb-12" />
+          </div>
+
+          <div className="flex items-center gap-4 mt-8 pt-6 border-t border-fog/60">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={currentBlog.published} onChange={e => setCurrentBlog({ ...currentBlog, published: e.target.checked })} className="w-5 h-5 text-ocean rounded focus:ring-ocean" />
+              <span className="text-sm font-semibold text-charcoal">Publish Immediately</span>
+            </label>
+            <div className="ml-auto flex gap-3">
+              <button type="button" onClick={() => setIsEditing(false)} className="px-6 py-2.5 border border-fog text-charcoal text-sm font-label font-semibold uppercase tracking-wider rounded-lg hover:bg-sand/30 transition-colors">Cancel</button>
+              <button type="submit" className="px-6 py-2.5 bg-ocean text-white text-sm font-label font-semibold uppercase tracking-wider rounded-lg hover:bg-ocean/90 transition-colors">Save Blog</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  if (loading) return <div className="flex justify-center py-24"><Loader2 className="h-5 w-5 animate-spin text-driftwood" /></div>;
+
+  return (
+    <>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-display font-bold text-ocean">Blog Posts</h2>
+        <button
+          onClick={() => {
+            setCurrentBlog({ title: "", slug: "", content: "", excerpt: "", cover_image_url: "", tags: "", published: false });
+            setIsEditing(true);
+          }}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold hover:bg-gold-soft text-ocean text-sm font-label font-semibold uppercase tracking-wider rounded-lg transition-colors"
+        >
+          <Plus className="h-4 w-4" /> Create Post
+        </button>
+      </div>
+
+      <div className="bg-white border border-fog/60 rounded-xl overflow-hidden shadow-lift">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-fog/60 bg-sand/30">
+                <th className="px-6 py-4 text-xs font-label font-semibold uppercase tracking-wider text-charcoal">Title</th>
+                <th className="px-6 py-4 text-xs font-label font-semibold uppercase tracking-wider text-charcoal">Status</th>
+                <th className="px-6 py-4 text-xs font-label font-semibold uppercase tracking-wider text-charcoal">Date</th>
+                <th className="px-6 py-4 text-right text-xs font-label font-semibold uppercase tracking-wider text-charcoal">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-fog/60">
+              {blogs.map((b) => (
+                <tr key={b.id} className="hover:bg-sand/10 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="font-semibold text-charcoal">{b.title}</div>
+                    <div className="text-xs text-driftwood mt-1">/{b.slug}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {b.published ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-label uppercase tracking-wider font-bold bg-green-50 text-green-700 border border-green-200">
+                        <CheckCircle2 className="h-3 w-3" /> Published
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-label uppercase tracking-wider font-bold bg-yellow-50 text-yellow-700 border border-yellow-200">
+                        <Clock className="h-3 w-3" /> Draft
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-driftwood">
+                    {new Date(b.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => {
+                        setCurrentBlog({ ...b, tags: b.tags ? b.tags.join(", ") : "" });
+                        setIsEditing(true);
+                      }} className="text-ocean hover:text-ocean/70 p-2 rounded-md hover:bg-ocean/5 transition-colors">
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => handleDelete(b.id)} className="text-red-500 hover:text-red-700 p-2 rounded-md hover:bg-red-50 transition-colors">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {blogs.length === 0 && (
+                <tr>
+                  <td colSpan="4" className="px-6 py-12 text-center text-driftwood">
+                    No blog posts found. Create your first post!
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </>
   );
 }

@@ -18,6 +18,8 @@ import MyAccount from "@/pages/MyAccount";
 import AdminDashboard from "@/pages/AdminDashboard";
 import ItineraryDetail from "@/pages/ItineraryDetail";
 import Feed from "@/pages/Feed";
+import BlogList from "@/pages/BlogList";
+import BlogPost from "@/pages/BlogPost";
 import WhatsAppFab from "@/components/WhatsAppFab";
 import { Toaster } from "sonner";
 
@@ -35,6 +37,8 @@ function App() {
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/feed" element={<Feed />} />
+              <Route path="/blog" element={<BlogList />} />
+              <Route path="/blog/:slug" element={<BlogPost />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route

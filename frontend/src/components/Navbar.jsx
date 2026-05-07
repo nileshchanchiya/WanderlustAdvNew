@@ -9,6 +9,7 @@ const PUBLIC_LINKS = [
   { to: "/destinations", label: "Destinations" },
   { to: "/services", label: "Services" },
   { to: "/feed", label: "Feed" },
+  { to: "/blog", label: "Blog" },
   { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
 ];

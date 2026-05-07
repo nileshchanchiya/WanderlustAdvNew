@@ -21,8 +21,10 @@ from concurrent.futures import ThreadPoolExecutor
 import bcrypt
 import jwt
 import certifi
+import shutil
 from bson import ObjectId
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, UploadFile, File
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
@@ -1079,6 +1081,77 @@ async def delete_destination(destination_id: str, admin: dict = Depends(require_
     return {"ok": True}
 
 
+# ---------- Blog integration ----------
+
+class BlogInput(BaseModel):
+    title: str
+    slug: str
+    content: str
+    excerpt: Optional[str] = None
+    cover_image_url: Optional[str] = None
+    tags: List[str] = []
+    published: bool = False
+
+@api.get("/blogs")
+async def list_published_blogs():
+    cursor = db.blogs.find({"published": True}, {"_id": 0}).sort("created_at", -1)
+    return await cursor.to_list(length=100)
+
+@api.get("/blogs/{slug}")
+async def get_blog(slug: str):
+    blog = await db.blogs.find_one({"slug": slug, "published": True}, {"_id": 0})
+    if not blog:
+        raise HTTPException(status_code=404, detail="Blog not found")
+    return blog
+
+@api.get("/admin/blogs")
+async def admin_list_blogs(admin: dict = Depends(require_admin)):
+    cursor = db.blogs.find({}, {"_id": 0}).sort("created_at", -1)
+    return await cursor.to_list(length=100)
+
+@api.post("/admin/blogs")
+async def create_blog(data: BlogInput, admin: dict = Depends(require_admin)):
+    doc = {
+        "id": str(uuid.uuid4()),
+        **data.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.blogs.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api.put("/admin/blogs/{blog_id}")
+async def update_blog(blog_id: str, data: BlogInput, admin: dict = Depends(require_admin)):
+    updates = data.model_dump()
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    res = await db.blogs.update_one({"id": blog_id}, {"$set": updates})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Blog not found")
+    return await db.blogs.find_one({"id": blog_id}, {"_id": 0})
+
+@api.delete("/admin/blogs/{blog_id}")
+async def delete_blog(blog_id: str, admin: dict = Depends(require_admin)):
+    res = await db.blogs.delete_one({"id": blog_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Blog not found")
+    return {"ok": True}
+
+@api.post("/admin/upload")
+async def upload_file(request: Request, file: UploadFile = File(...), admin: dict = Depends(require_admin)):
+    # Generate a unique filename
+    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    file_path = UPLOAD_DIR / filename
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Return full URL
+    base_url = str(request.base_url).rstrip("/")
+    return {"url": f"{base_url}/uploads/{filename}"}
+
+
 # ---------- Social Feed integration ----------
 
 class FeedPostInput(BaseModel):
@@ -1400,14 +1473,20 @@ app.add_middleware(
     allow_origins=[
         frontend_url,
         "http://localhost:3000",
+        "http://127.0.0.1:3000",
         "https://wanderlustadventure.in",
         "https://www.wanderlustadventure.in",
-        "https://wanderlust-adventure-81e8b.web.app",
+        "https://wanderlust-adventure-81e8b.web.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Ensure uploads directory exists and mount it
+UPLOAD_DIR = ROOT_DIR / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
