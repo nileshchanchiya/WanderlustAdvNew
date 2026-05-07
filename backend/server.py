@@ -207,10 +207,19 @@ async def get_current_user(request: Request) -> dict:
             if query:
                 user = await db.users.find_one({"$or": query})
             
+            # Determine if this email should be admin
+            admin_emails = [e.strip().lower() for e in os.environ.get("ADMIN_EMAIL", "").split(",") if e.strip()]
+            is_admin = email and email.lower() in admin_emails
+
             if user:
                 # Link account
-                await db.users.update_one({"_id": user["_id"]}, {"$set": {"firebase_uid": uid}})
+                updates = {"firebase_uid": uid}
+                if is_admin and user.get("role") != "admin":
+                    updates["role"] = "admin"
+                await db.users.update_one({"_id": user["_id"]}, {"$set": updates})
                 user["firebase_uid"] = uid
+                if is_admin:
+                    user["role"] = "admin"
             else:
                 # Create new account
                 new_user = {
@@ -219,7 +228,7 @@ async def get_current_user(request: Request) -> dict:
                     "phone": phone or "",
                     "name": decoded_token.get("name", "Wanderer"),
                     "profile_image": decoded_token.get("picture", ""),
-                    "role": "user",
+                    "role": "admin" if is_admin else "user",
                     "created_at": datetime.now(timezone.utc)
                 }
                 res = await db.users.insert_one(new_user)
