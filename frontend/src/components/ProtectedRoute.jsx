@@ -13,5 +13,6 @@ export default function ProtectedRoute({ children }) {
     );
   }
   if (user === false) return <Navigate to="/login" replace />;
+  if (user._pendingVerification) return <Navigate to="/login" replace />;
   return children;
 }

@@ -28,7 +28,7 @@ const COUNTRY_CODES = [
 ];
 
 export default function Login() {
-  const { loginWithGoogle, loginWithPhone, loginWithEmail, verifyOtp, user } = useAuth();
+  const { loginWithGoogle, loginWithPhone, loginWithEmail, verifyOtp, resendVerification, checkEmailVerified, user } = useAuth();
   const [authMode, setAuthMode] = useState("phone"); // "phone" | "email"
   const [phoneNumber, setPhoneNumber] = useState("");
   const [countryCode, setCountryCode] = useState("+91");
@@ -38,9 +38,10 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState("");
   const navigate = useNavigate();
 
-  if (user && user !== false && user !== null) return <Navigate to="/account" replace />;
+  if (user && user !== false && user !== null && !user._pendingVerification) return <Navigate to="/account" replace />;
 
   const handleGoogleLogin = async () => {
     setErr("");
@@ -86,10 +87,74 @@ export default function Login() {
     setLoading(false);
     if (!res.ok) {
       setErr(res.error);
+    }
+    // If login succeeds but email unverified, AuthContext sets _pendingVerification
+  };
+
+  const handleResendVerification = async () => {
+    setResendMsg("");
+    setErr("");
+    const res = await resendVerification();
+    if (res.ok) {
+      setResendMsg("Verification email sent! Check your inbox.");
     } else {
-      navigate("/account");
+      setErr(res.error);
     }
   };
+
+  const handleCheckVerified = async () => {
+    setErr("");
+    setLoading(true);
+    const res = await checkEmailVerified();
+    setLoading(false);
+    if (res.ok) {
+      navigate("/account");
+    } else {
+      setErr("Email not verified yet. Please check your inbox and click the link.");
+    }
+  };
+
+  // Show verification pending screen
+  if (user && user._pendingVerification) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-ink-0 p-6">
+        <div className="w-full max-w-md space-y-4 text-center">
+          <div className="mx-auto w-16 h-16 bg-green-50 rounded-full flex items-center justify-center">
+            <Mail className="h-8 w-8 text-green-600" />
+          </div>
+          <h2 className="font-display text-2xl font-bold text-ink-900">Verify your email</h2>
+          <p className="text-ink-500 text-sm">
+            A verification link was sent to <strong className="text-ink-700">{user.email}</strong>. Click the link to activate your account.
+          </p>
+          {err && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+              {err}
+            </div>
+          )}
+          {resendMsg && (
+            <div className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+              {resendMsg}
+            </div>
+          )}
+          <button
+            onClick={handleCheckVerified}
+            disabled={loading}
+            className="w-full inline-flex items-center justify-center gap-2 bg-terracotta hover:bg-terracotta-hover text-white rounded-lg px-6 py-2.5 font-medium transition-colors disabled:opacity-60"
+          >
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            I've verified my email
+          </button>
+          <button
+            type="button"
+            onClick={handleResendVerification}
+            className="w-full text-sm text-ink-500 hover:text-ink-900"
+          >
+            Didn't receive it? Resend verification email
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-ink-0">
