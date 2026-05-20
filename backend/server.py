@@ -1172,6 +1172,7 @@ async def _call_gemini(parts: list, temperature: float = 0.8) -> dict:
         "generationConfig": {
             "temperature": temperature,
             "maxOutputTokens": 8192,
+            "responseMimeType": "application/json",
         },
     }
     async with _httpx.AsyncClient(timeout=90) as client:
