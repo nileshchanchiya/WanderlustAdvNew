@@ -1115,6 +1115,9 @@ Guidelines:
 - Suggest packing items relevant to the destination, weather, and activities
 - day_index starts at 0 for Day 1
 - Be specific with location names (actual restaurants, landmarks, hotels)
+- CRITICAL: Ensure all JSON strings are properly escaped. Do NOT use unescaped double quotes (") inside strings. Use single quotes (') instead.
+- CRITICAL: Do NOT use unescaped newlines or control characters inside strings.
+- CRITICAL: Keep descriptions concise to prevent the response from being truncated.
 """
 
 
