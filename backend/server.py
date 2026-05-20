@@ -33,7 +33,7 @@ from pydantic import BaseModel, Field, EmailStr
 import firebase_admin
 from firebase_admin import credentials, auth as firebase_auth
 
-import google.generativeai as genai
+import httpx as _httpx
 
 
 # ---------- Config ----------
@@ -74,14 +74,12 @@ except Exception as e:
 
 # ---------- Gemini AI Init ----------
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-gemini_model = None
+GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 if GEMINI_API_KEY:
-    try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        gemini_model = genai.GenerativeModel("gemini-2.5-flash")
-        print("✅ Gemini AI initialized (gemini-2.5-flash)")
-    except Exception as e:
-        print(f"⚠️ Gemini AI init failed: {e}")
+    print(f"✅ Gemini AI configured ({GEMINI_MODEL}, REST API)")
+else:
+    print("⚠️ GEMINI_API_KEY not set — AI features disabled")
 
 
 app = FastAPI(title="Itinera API")
@@ -1066,7 +1064,7 @@ async def delete_itinerary(itinerary_id: str, user: dict = Depends(get_current_u
     return {"ok": True}
 
 
-# ---------- AI Trip Planner (Gemini) ----------
+# ---------- AI Trip Planner (Gemini REST API) ----------
 
 AI_SYSTEM_PROMPT = """You are Wanderlust AI, an expert travel planner. Generate a detailed, day-by-day travel itinerary.
 
@@ -1139,16 +1137,13 @@ class AIDescribeRequest(BaseModel):
 def _parse_ai_json(text: str) -> dict:
     """Extract JSON from Gemini response, stripping markdown fences if present."""
     cleaned = text.strip()
-    # Strip markdown code fences
     if cleaned.startswith("```"):
         lines = cleaned.split("\n")
-        # Remove first line (```json) and last line (```)
         lines = [l for l in lines if not l.strip().startswith("```")]
         cleaned = "\n".join(lines).strip()
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
-        # Try to find JSON object in the text
         start = cleaned.find("{")
         end = cleaned.rfind("}") + 1
         if start >= 0 and end > start:
@@ -1170,15 +1165,44 @@ def _enrich_ids(data: dict) -> dict:
     return data
 
 
+async def _call_gemini(parts: list, temperature: float = 0.8) -> dict:
+    """Call Gemini REST API and return parsed JSON."""
+    payload = {
+        "contents": [{"parts": parts}],
+        "generationConfig": {
+            "temperature": temperature,
+            "maxOutputTokens": 8192,
+        },
+    }
+    async with _httpx.AsyncClient(timeout=90) as client:
+        resp = await client.post(
+            GEMINI_URL,
+            params={"key": GEMINI_API_KEY},
+            json=payload,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+
+    # Extract text from response
+    candidates = body.get("candidates", [])
+    if not candidates:
+        raise ValueError("No response from Gemini AI")
+    text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+    if not text:
+        raise ValueError("Empty response from Gemini AI")
+
+    result = _parse_ai_json(text)
+    return _enrich_ids(result)
+
+
 @api.post("/itineraries/ai-generate")
 async def ai_generate_itinerary(
     data: AIGenerateRequest,
     user: dict = Depends(get_current_user),
 ):
-    if not gemini_model:
+    if not GEMINI_API_KEY:
         raise HTTPException(status_code=503, detail="AI service not configured")
 
-    # Build the prompt
     duration = ""
     if data.start_date and data.end_date:
         try:
@@ -1203,20 +1227,11 @@ Generate a complete day-by-day itinerary with timeline events, estimated expense
 Return ONLY the JSON object, no other text."""
 
     try:
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(
-            _thread_pool,
-            lambda: gemini_model.generate_content(
-                [AI_SYSTEM_PROMPT, user_prompt],
-                generation_config=genai.GenerationConfig(
-                    temperature=0.8,
-                    max_output_tokens=8192,
-                ),
-            ),
-        )
-        result = _parse_ai_json(response.text)
-        result = _enrich_ids(result)
-        # Ensure required fields
+        parts = [
+            {"text": AI_SYSTEM_PROMPT},
+            {"text": user_prompt},
+        ]
+        result = await _call_gemini(parts, temperature=0.8)
         result.setdefault("type", "travel")
         result.setdefault("currency", data.currency)
         result.setdefault("destination", data.destination)
@@ -1235,10 +1250,9 @@ async def ai_import_file(
     file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
 ):
-    if not gemini_model:
+    if not GEMINI_API_KEY:
         raise HTTPException(status_code=503, detail="AI service not configured")
 
-    # Validate file type
     allowed_types = {
         "application/pdf": "pdf",
         "image/jpeg": "jpeg",
@@ -1254,9 +1268,8 @@ async def ai_import_file(
             detail=f"Unsupported file type: {content_type}. Allowed: PDF, JPG, PNG, TXT, CSV",
         )
 
-    # Read file content
     file_bytes = await file.read()
-    if len(file_bytes) > 10 * 1024 * 1024:  # 10MB limit
+    if len(file_bytes) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large (max 10MB)")
 
     import_prompt = """Analyze this file and extract all travel/trip-related information.
@@ -1265,44 +1278,25 @@ If it's a flight booking, hotel reservation, or tour confirmation, extract dates
 Return ONLY the JSON object matching the schema, no other text."""
 
     try:
-        loop = asyncio.get_event_loop()
+        parts = [
+            {"text": AI_SYSTEM_PROMPT},
+            {"text": import_prompt},
+        ]
 
         if content_type.startswith("text/"):
-            # Text files: send as text
             text_content = file_bytes.decode("utf-8", errors="replace")
-            response = await loop.run_in_executor(
-                _thread_pool,
-                lambda: gemini_model.generate_content(
-                    [AI_SYSTEM_PROMPT, import_prompt, f"File content:\n{text_content}"],
-                    generation_config=genai.GenerationConfig(
-                        temperature=0.5,
-                        max_output_tokens=8192,
-                    ),
-                ),
-            )
+            parts.append({"text": f"File content:\n{text_content}"})
         else:
-            # Binary files (PDF, images): use Gemini multimodal
             import base64
             b64_data = base64.b64encode(file_bytes).decode("utf-8")
-            file_part = {
+            parts.append({
                 "inline_data": {
                     "mime_type": content_type,
                     "data": b64_data,
                 }
-            }
-            response = await loop.run_in_executor(
-                _thread_pool,
-                lambda: gemini_model.generate_content(
-                    [AI_SYSTEM_PROMPT, import_prompt, file_part],
-                    generation_config=genai.GenerationConfig(
-                        temperature=0.5,
-                        max_output_tokens=8192,
-                    ),
-                ),
-            )
+            })
 
-        result = _parse_ai_json(response.text)
-        result = _enrich_ids(result)
+        result = await _call_gemini(parts, temperature=0.5)
         result.setdefault("type", "travel")
         result.setdefault("currency", "INR")
         return result
@@ -1317,7 +1311,7 @@ async def ai_describe_itinerary(
     user: dict = Depends(get_current_user),
 ):
     """Generate itinerary from a free-form text description."""
-    if not gemini_model:
+    if not GEMINI_API_KEY:
         raise HTTPException(status_code=503, detail="AI service not configured")
 
     user_prompt = f"""The user described their trip as follows:
@@ -1328,19 +1322,11 @@ Infer destination, dates, travel style, and interests from the description.
 Return ONLY the JSON object, no other text."""
 
     try:
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(
-            _thread_pool,
-            lambda: gemini_model.generate_content(
-                [AI_SYSTEM_PROMPT, user_prompt],
-                generation_config=genai.GenerationConfig(
-                    temperature=0.8,
-                    max_output_tokens=8192,
-                ),
-            ),
-        )
-        result = _parse_ai_json(response.text)
-        result = _enrich_ids(result)
+        parts = [
+            {"text": AI_SYSTEM_PROMPT},
+            {"text": user_prompt},
+        ]
+        result = await _call_gemini(parts, temperature=0.8)
         result.setdefault("type", "travel")
         result.setdefault("currency", "INR")
         return result
