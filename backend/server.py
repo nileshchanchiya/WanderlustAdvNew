@@ -34,6 +34,7 @@ import firebase_admin
 from firebase_admin import credentials, auth as firebase_auth
 
 import httpx as _httpx
+import json_repair
 
 
 # ---------- Config ----------
@@ -1138,20 +1139,22 @@ class AIDescribeRequest(BaseModel):
 
 
 def _parse_ai_json(text: str) -> dict:
-    """Extract JSON from Gemini response, stripping markdown fences if present."""
+    """Extract JSON from Gemini response, stripping markdown fences if present. Uses json_repair to handle malformed/truncated outputs."""
     cleaned = text.strip()
     if cleaned.startswith("```"):
         lines = cleaned.split("\n")
         lines = [l for l in lines if not l.strip().startswith("```")]
         cleaned = "\n".join(lines).strip()
+    
+    # Use json_repair to parse and fix any syntax errors or truncation
     try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        start = cleaned.find("{")
-        end = cleaned.rfind("}") + 1
-        if start >= 0 and end > start:
-            return json.loads(cleaned[start:end])
-        raise ValueError("Could not parse AI response as JSON")
+        parsed = json_repair.loads(cleaned)
+        if not isinstance(parsed, dict):
+            raise ValueError("Parsed JSON is not a dictionary")
+        return parsed
+    except Exception as e:
+        logging.exception("json_repair failed to parse AI output")
+        raise ValueError(f"Could not parse AI response: {str(e)}")
 
 
 def _enrich_ids(data: dict) -> dict:
