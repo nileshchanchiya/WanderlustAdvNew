@@ -3,12 +3,13 @@ import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CreateItineraryModal from "@/components/CreateItineraryModal";
+import AITripPlannerModal from "@/components/AITripPlannerModal";
 import api, { formatApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import {
   User, MapPin, Calendar, Briefcase, Users2, Trash2, Loader2,
   PackageOpen, Plus, Heart, Phone, Building2, Save, Camera,
-  Map, ClipboardList, HeartOff, ExternalLink
+  Map, ClipboardList, HeartOff, ExternalLink, Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -221,6 +222,7 @@ function ProfileTab({ user, onUpdated }) {
 function ItinerariesTab() {
   const [items, setItems] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showAI, setShowAI] = useState(false);
   const [err, setErr] = useState("");
 
   const load = async () => {
@@ -238,6 +240,7 @@ function ItinerariesTab() {
   const onCreated = (item) => {
     setItems((prev) => [item, ...(prev || [])]);
     setShowCreate(false);
+    setShowAI(false);
     toast.success("Itinerary created");
   };
 
@@ -254,15 +257,24 @@ function ItinerariesTab() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h3 className="font-serif text-2xl font-bold text-ocean">Your Itineraries</h3>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="inline-flex items-center gap-2 bg-terracotta hover:bg-terracotta-hover text-white rounded-lg px-5 py-2.5 font-medium transition-colors text-sm"
-        >
-          <Plus className="h-4 w-4" strokeWidth={2} />
-          New Itinerary
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAI(true)}
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white rounded-lg px-5 py-2.5 font-medium transition-all text-sm shadow-lg hover:shadow-xl"
+          >
+            <Sparkles className="h-4 w-4" strokeWidth={2} />
+            AI Trip Planner
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-2 bg-terracotta hover:bg-terracotta-hover text-white rounded-lg px-5 py-2.5 font-medium transition-colors text-sm"
+          >
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            New Itinerary
+          </button>
+        </div>
       </div>
 
       {err && (
@@ -345,6 +357,10 @@ function ItinerariesTab() {
 
       {showCreate && (
         <CreateItineraryModal onClose={() => setShowCreate(false)} onCreated={onCreated} />
+      )}
+
+      {showAI && (
+        <AITripPlannerModal onClose={() => setShowAI(false)} onCreated={onCreated} />
       )}
     </>
   );
