@@ -57,24 +57,23 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const setupRecaptcha = (containerId) => {
-    if (window.recaptchaVerifier) {
-      try {
-        window.recaptchaVerifier.clear();
-      } catch (e) {
-        // ignore
-      }
-      window.recaptchaVerifier = null;
-    }
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
-      size: 'invisible'
-    });
-  };
-
   const loginWithPhone = async (phoneNumber, containerId) => {
     try {
-      setupRecaptcha(containerId);
-      const appVerifier = window.recaptchaVerifier;
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear();
+        } catch (e) {}
+        window.recaptchaVerifier = null;
+      }
+      
+      const appVerifier = new RecaptchaVerifier(auth, containerId, {
+        size: 'invisible'
+      });
+      
+      // Render the verifier before using it
+      await appVerifier.render();
+      window.recaptchaVerifier = appVerifier;
+
       const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
       window.confirmationResult = confirmationResult;
       return { ok: true };
