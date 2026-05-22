@@ -7,28 +7,17 @@ import AddDestinationModal from "@/components/AddDestinationModal";
 import { useAuth } from "@/context/AuthContext";
 import api, { formatApiError } from "@/lib/api";
 import { toast } from "sonner";
-import { MapPin, ArrowUpRight, Plus, Trash2, Sparkles, Heart } from "lucide-react";
-
-const DESTS = [
-  { region: "international", name: "Dubai", slug: "dubai", tag: "Luxury · Skyline", img: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1200&q=80", budget: "luxury", theme: "family" },
-  { region: "international", name: "Bali", slug: "bali", tag: "Beaches · Culture", img: "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "honeymoon" },
-  { region: "international", name: "Europe", slug: "europe", tag: "Classic · Heritage", img: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80", budget: "luxury", theme: "family" },
-  { region: "international", name: "Maldives", slug: "maldives", tag: "Islands · Honeymoon", img: "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=1200&q=80", budget: "luxury", theme: "honeymoon" },
-  { region: "international", name: "Thailand", slug: "thailand", tag: "Beach · Adventure", img: "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "friends" },
-  { region: "international", name: "Singapore", slug: "singapore", tag: "City · Family", img: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "family" },
-  { region: "domestic", name: "Goa", slug: "goa", tag: "Beach · Nightlife", img: "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=1200&q=80", budget: "budget", theme: "friends" },
-  { region: "domestic", name: "Manali", slug: "manali", tag: "Mountains · Adventure", img: "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&w=1200&q=80", budget: "budget", theme: "friends" },
-  { region: "domestic", name: "Kashmir", slug: "kashmir", tag: "Snow · Serenity", img: "https://images.unsplash.com/photo-1595815771614-ade9d652a65d?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "honeymoon" },
-  { region: "domestic", name: "Kerala", slug: "kerala", tag: "Backwaters · Nature", img: "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "family" },
-  { region: "domestic", name: "Ladakh", slug: "ladakh", tag: "High Altitude · Biking", img: "https://images.unsplash.com/photo-1589556264800-08ae9e129a8c?auto=format&fit=crop&w=1200&q=80", budget: "mid", theme: "friends" },
-  { region: "domestic", name: "Rajasthan", slug: "rajasthan", tag: "Royal · Culture", img: "https://images.unsplash.com/photo-1477587458883-47145ed94245?auto=format&fit=crop&w=1200&q=80", budget: "luxury", theme: "family" },
-];
+import { MapPin, ArrowUpRight, Plus, Trash2, Sparkles, Heart, Search, Star, SlidersHorizontal, ArrowDownAZ, ArrowUpDown } from "lucide-react";
+import { DESTINATIONS } from "@/lib/destinationData";
 
 const THEMES = [
   { k: "all", label: "All" },
   { k: "honeymoon", label: "Honeymoon" },
   { k: "family", label: "Family" },
   { k: "friends", label: "Friends" },
+  { k: "solo", label: "Solo" },
+  { k: "adventure", label: "Adventure" },
+  { k: "luxury", label: "Luxury" },
 ];
 
 const BUDGETS = [
@@ -51,17 +40,22 @@ export default function Destinations() {
   const [budget, setBudget] = useState("all");
   const [customs, setCustoms] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("default");
+  const [loadingCustoms, setLoadingCustoms] = useState(true);
 
   const isAdmin = user && user !== false && user !== null && user.role === "admin";
 
   useEffect(() => {
     (async () => {
+      setLoadingCustoms(true);
       try {
         const { data } = await api.get("/destinations");
         setCustoms(data);
       } catch (e) {
-        // public endpoint — quiet fail so anon visitors don't see toast
         console.error(e);
+      } finally {
+        setLoadingCustoms(false);
       }
     })();
   }, []);
@@ -131,17 +125,47 @@ export default function Destinations() {
     [customs]
   );
 
-  const allEntries = useMemo(() => [...customEntries, ...DESTS], [customEntries]);
+  const allEntries = useMemo(() => [...customEntries, ...DESTINATIONS], [customEntries]);
 
   const filtered = useMemo(
-    () =>
-      allEntries.filter(
+    () => {
+      let results = allEntries.filter(
         (d) =>
           (region === "all" || d.region === region) &&
           (theme === "all" || d.theme === theme) &&
           (budget === "all" || d.budget === budget)
-      ),
-    [allEntries, region, theme, budget]
+      );
+      // Text search
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        results = results.filter(
+          (d) =>
+            d.name.toLowerCase().includes(q) ||
+            (d.tag || "").toLowerCase().includes(q) ||
+            (d.description || "").toLowerCase().includes(q)
+        );
+      }
+      // Sort
+      if (sortBy === "az") {
+        results = [...results].sort((a, b) => a.name.localeCompare(b.name));
+      } else if (sortBy === "za") {
+        results = [...results].sort((a, b) => b.name.localeCompare(a.name));
+      } else if (sortBy === "price-low") {
+        results = [...results].sort((a, b) => {
+          const pa = parseInt((a.price_from || "0").replace(/[^0-9]/g, "")) || 0;
+          const pb = parseInt((b.price_from || "0").replace(/[^0-9]/g, "")) || 0;
+          return pa - pb;
+        });
+      } else if (sortBy === "price-high") {
+        results = [...results].sort((a, b) => {
+          const pa = parseInt((a.price_from || "0").replace(/[^0-9]/g, "")) || 0;
+          const pb = parseInt((b.price_from || "0").replace(/[^0-9]/g, "")) || 0;
+          return pb - pa;
+        });
+      }
+      return results;
+    },
+    [allEntries, region, theme, budget, searchQuery, sortBy]
   );
 
   return (
@@ -166,16 +190,41 @@ export default function Destinations() {
       </section>
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="bg-white border border-fog/60 rounded-2xl p-5 shadow-lift flex flex-wrap items-center gap-4">
+        {/* Search Bar */}
+        <div className="relative mb-4">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-driftwood" strokeWidth={1.5} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search destinations by name, tag, or description…"
+            className="w-full bg-white border border-fog/60 rounded-xl pl-11 pr-4 py-3 font-body text-charcoal placeholder:text-driftwood/60 focus:ring-2 focus:ring-gold/25 focus:border-gold outline-none transition-all"
+            data-testid="dest-search-input"
+          />
+        </div>
+
+        <div className="bg-white border border-fog/60 rounded-2xl p-5 flex flex-wrap items-center gap-4">
           <FilterGroup label="Region" value={region} onChange={setRegion} options={REGIONS} testid="filter-region" />
           <FilterGroup label="Theme" value={theme} onChange={setTheme} options={THEMES} testid="filter-theme" />
           <FilterGroup label="Budget" value={budget} onChange={setBudget} options={BUDGETS} testid="filter-budget" />
           <div className="ml-auto flex items-center gap-4">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="bg-white border border-fog rounded-lg px-3 py-1.5 text-xs font-label font-semibold uppercase tracking-wider text-charcoal cursor-pointer"
+              data-testid="dest-sort-select"
+            >
+              <option value="default">Default</option>
+              <option value="az">A → Z</option>
+              <option value="za">Z → A</option>
+              <option value="price-low">Price: Low → High</option>
+              <option value="price-high">Price: High → Low</option>
+            </select>
             <div className="text-sm text-driftwood font-mono">{filtered.length} results</div>
             {isAdmin && (
               <button
                 onClick={() => setShowAdd(true)}
-                className="inline-flex items-center gap-2 bg-sunset text-charcoal rounded-full px-4 py-2 font-label text-xs font-semibold uppercase tracking-wider shadow-lift hover:shadow-float transition-all"
+                className="inline-flex items-center gap-2 bg-sunset text-charcoal rounded-full px-4 py-2 font-label text-xs font-semibold uppercase tracking-wider hover:shadow-float transition-all"
                 data-testid="add-destination-btn"
               >
                 <Plus className="h-3.5 w-3.5" strokeWidth={2.2} />
@@ -193,8 +242,16 @@ export default function Destinations() {
       </section>
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-        {filtered.length === 0 ? (
-          <div className="bg-white border border-dashed border-fog rounded-2xl py-16 text-center shadow-lift">
+        {loadingCustoms ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="rounded-2xl border border-fog/60 overflow-hidden">
+                <div className="aspect-[4/5] shimmer" />
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="bg-white border border-dashed border-fog rounded-2xl py-16 text-center">
             <p className="font-serif text-2xl font-bold text-ocean">No matches</p>
             <p className="text-driftwood mt-2 font-body">Try loosening a filter — or tell us what you have in mind.</p>
             <Link
@@ -245,7 +302,7 @@ function DestCard({ d, onDelete, isAdmin, isWished, onToggleWish }) {
         {!d.custom && <Badge variant="gold">{capitalize(d.budget)}</Badge>}
       </div>
       {/* Wishlist heart */}
-      {d.id && (
+      {(
         <button
           onClick={(e) => {
             e.preventDefault();
@@ -289,7 +346,7 @@ function DestCard({ d, onDelete, isAdmin, isWished, onToggleWish }) {
     </>
   );
   const className =
-    "group relative overflow-hidden rounded-2xl border border-fog/60 bg-white block shadow-lift hover:shadow-hover transition-all duration-300 hover:-translate-y-1";
+    "group relative overflow-hidden rounded-2xl border border-fog/60 bg-white block hover:shadow-hover transition-all duration-300 hover:-translate-y-1";
 
   return (
     <Link to={`/destinations/${slug}`} className={className} data-testid={`dest-${slug}`}>

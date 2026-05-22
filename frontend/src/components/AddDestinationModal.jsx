@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import api, { formatApiError } from "@/lib/api";
 import { X, Loader2 } from "lucide-react";
 
-const EMOJIS = ["✈", "🗾", "🏝", "⛰", "🕌", "🏞", "🏕", "🌅"];
 
 export default function AddDestinationModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
@@ -13,6 +12,11 @@ export default function AddDestinationModal({ onClose, onCreated }) {
     budget: "mid",
     image_url: "",
     notes: "",
+    description: "",
+    highlights: "",
+    best_time: "",
+    duration: "",
+    price_from: "",
   });
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
@@ -143,6 +147,16 @@ export default function AddDestinationModal({ onClose, onCreated }) {
             <p className="text-xs text-driftwood mt-1">
               Paste any public image URL. Leave blank to use a default ocean image.
             </p>
+            {form.image_url && (
+              <div className="mt-2 rounded-lg overflow-hidden border border-fog/60 h-32 w-48">
+                <img
+                  src={form.image_url}
+                  alt="Preview"
+                  className="h-full w-full object-cover"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              </div>
+            )}
           </div>
           <div>
             <label className="label-caps mb-2 block">Notes (private)</label>
@@ -154,6 +168,65 @@ export default function AddDestinationModal({ onClose, onCreated }) {
               className="w-full bg-white border border-fog rounded-lg px-3 py-2.5 resize-none"
               data-testid="dest-notes-input"
             />
+          </div>
+          {/* Additional Details */}
+          <div className="pt-3 border-t border-fog/40">
+            <div className="label-caps mb-3 text-ocean">Additional Details</div>
+            <div className="space-y-4">
+              <div>
+                <label className="label-caps mb-2 block">Description</label>
+                <textarea
+                  value={form.description}
+                  onChange={set("description")}
+                  rows={3}
+                  placeholder="Describe this destination for visitors…"
+                  className="w-full bg-white border border-fog rounded-lg px-3 py-2.5 resize-none"
+                  data-testid="dest-description-input"
+                />
+              </div>
+              <div>
+                <label className="label-caps mb-2 block">Highlights (comma separated)</label>
+                <input
+                  value={form.highlights}
+                  onChange={set("highlights")}
+                  placeholder="e.g. Beach, Temple, Market, Waterfall"
+                  className="w-full bg-white border border-fog rounded-lg px-3 py-2.5"
+                  data-testid="dest-highlights-input"
+                />
+              </div>
+              <div className="grid sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="label-caps mb-2 block">Best Time</label>
+                  <input
+                    value={form.best_time}
+                    onChange={set("best_time")}
+                    placeholder="e.g. Nov – Mar"
+                    className="w-full bg-white border border-fog rounded-lg px-3 py-2.5"
+                    data-testid="dest-besttime-input"
+                  />
+                </div>
+                <div>
+                  <label className="label-caps mb-2 block">Duration</label>
+                  <input
+                    value={form.duration}
+                    onChange={set("duration")}
+                    placeholder="e.g. 4–6 nights"
+                    className="w-full bg-white border border-fog rounded-lg px-3 py-2.5"
+                    data-testid="dest-duration-input"
+                  />
+                </div>
+                <div>
+                  <label className="label-caps mb-2 block">Price From</label>
+                  <input
+                    value={form.price_from}
+                    onChange={set("price_from")}
+                    placeholder="e.g. ₹25,000"
+                    className="w-full bg-white border border-fog rounded-lg px-3 py-2.5 font-mono"
+                    data-testid="dest-price-input"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
           {err && (
             <div className="text-sm text-danger bg-danger-soft border border-danger/30 rounded-md px-3 py-2">
