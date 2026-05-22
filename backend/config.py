@@ -35,17 +35,18 @@ if mongo_url:
 # ---------- Firebase Init ----------
 firebase_json_str = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON")
 firebase_path = os.environ.get("FIREBASE_SERVICE_ACCOUNT_PATH")
+FIREBASE_STORAGE_BUCKET = "wanderlust-adventure-81e8b.firebasestorage.app"
 
 try:
     if firebase_json_str:
         cred_dict = json.loads(firebase_json_str)
         cred = credentials.Certificate(cred_dict)
-        firebase_admin.initialize_app(cred)
+        firebase_admin.initialize_app(cred, {'storageBucket': FIREBASE_STORAGE_BUCKET})
     elif firebase_path and os.path.exists(firebase_path):
         cred = credentials.Certificate(firebase_path)
-        firebase_admin.initialize_app(cred)
+        firebase_admin.initialize_app(cred, {'storageBucket': FIREBASE_STORAGE_BUCKET})
     else:
-        firebase_admin.initialize_app()
+        firebase_admin.initialize_app(options={'storageBucket': FIREBASE_STORAGE_BUCKET})
 except ValueError:
     pass
 except Exception as e:

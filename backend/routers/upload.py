@@ -1,7 +1,8 @@
 import uuid
 import asyncio
+import logging
 import urllib.parse
-from fastapi import APIRouter, UploadFile, File, Depends, Request
+from fastapi import APIRouter, UploadFile, File, Depends, Request, HTTPException
 from auth import require_admin
 from concurrent.futures import ThreadPoolExecutor
 
@@ -29,7 +30,10 @@ async def upload_file(request: Request, file: UploadFile = File(...), admin: dic
         encoded_path = urllib.parse.quote(filename, safe="")
         return f"https://firebasestorage.googleapis.com/v0/b/{STORAGE_BUCKET}/o/{encoded_path}?alt=media&token={download_token}"
 
-    loop = asyncio.get_event_loop()
-    url = await loop.run_in_executor(_thread_pool, _upload)
-    
-    return {"url": url}
+    try:
+        loop = asyncio.get_event_loop()
+        url = await loop.run_in_executor(_thread_pool, _upload)
+        return {"url": url}
+    except Exception as e:
+        logging.exception("Upload to Firebase Storage failed")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")

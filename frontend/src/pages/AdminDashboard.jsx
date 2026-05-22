@@ -637,7 +637,7 @@ function BlogsTab() {
         const range = quill.getSelection(true);
         quill.insertEmbed(range.index, 'image', data.url);
       } catch (e) {
-        toast.error('Image upload failed');
+        toast.error(e?.response?.data?.detail || 'Image upload failed');
       }
     };
   }, []);
@@ -670,7 +670,7 @@ function BlogsTab() {
       setCurrentBlog(prev => ({ ...prev, cover_image_url: data.url }));
       toast.success('Cover image uploaded');
     } catch (err) {
-      toast.error('Failed to upload cover image');
+      toast.error(err?.response?.data?.detail || 'Failed to upload cover image');
     }
   };
 
