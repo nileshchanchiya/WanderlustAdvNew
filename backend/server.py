@@ -32,20 +32,20 @@ async def global_exception_handler(request: Request, exc: Exception):
     logging.exception("Unhandled Exception")
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
-# Include Routers
-app.include_router(auth.router)
-app.include_router(destinations.router)
-app.include_router(blogs.router)
-app.include_router(blogs.admin_router)
-app.include_router(upload.router)
-app.include_router(feed.router)
-app.include_router(feed.admin_router)
-app.include_router(itineraries.router)
-app.include_router(ai.router)
-app.include_router(admin.router)
-app.include_router(admin.admin_router)
-app.include_router(wishlist.router)
-app.include_router(reviews.router)
+# Include Routers — all under /api prefix to match frontend expectations
+app.include_router(auth.router, prefix="/api")
+app.include_router(destinations.router, prefix="/api")
+app.include_router(blogs.router, prefix="/api")
+app.include_router(blogs.admin_router, prefix="/api")
+app.include_router(upload.router, prefix="/api")
+app.include_router(feed.router, prefix="/api")
+app.include_router(feed.admin_router, prefix="/api")
+app.include_router(itineraries.router, prefix="/api")
+app.include_router(ai.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
+app.include_router(admin.admin_router, prefix="/api")
+app.include_router(wishlist.router, prefix="/api")
+app.include_router(reviews.router, prefix="/api")
 
 # ---------- Startup ----------
 @app.on_event("startup")
@@ -55,4 +55,8 @@ async def startup_event():
 # ---------- Health ----------
 @app.get("/health")
 async def health_check():
+    return {"status": "ok", "timestamp": time.time()}
+
+@app.get("/api/health")
+async def api_health_check():
     return {"status": "ok", "timestamp": time.time()}
