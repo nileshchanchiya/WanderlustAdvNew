@@ -15,6 +15,8 @@ app = FastAPI(title="Wanderlust Adventure API")
 # Setup CORS
 allowed_origins = [
     FRONTEND_URL,
+    "https://wanderlust-adventure-81e8b.web.app",
+    "https://wanderlust-adventure-81e8b.firebaseapp.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]

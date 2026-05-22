@@ -630,7 +630,8 @@ function BlogsTab() {
       formData.append('file', file);
       try {
         const { data } = await api.post('/admin/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
+          headers: { 'Content-Type': undefined },
+          timeout: 60000
         });
         const quill = quillRef.current.getEditor();
         const range = quill.getSelection(true);
@@ -663,7 +664,8 @@ function BlogsTab() {
     formData.append('file', file);
     try {
       const { data } = await api.post('/admin/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': undefined },
+        timeout: 60000
       });
       setCurrentBlog(prev => ({ ...prev, cover_image_url: data.url }));
       toast.success('Cover image uploaded');
