@@ -103,7 +103,41 @@ async def admin_stats(admin: dict = Depends(require_admin)):
 async def admin_list_users(admin: dict = Depends(require_admin)):
     cursor = db.users.find({}, {"password_hash": 0}).sort("created_at", -1)
     users = await cursor.to_list(length=1000)
-    return [user_to_public(u) for u in users]
+    result = []
+    for u in users:
+        pub = user_to_public(u)
+        uid = str(u["_id"]) if "_id" in u else u.get("id")
+        count = await db.itineraries.count_documents({"user_id": uid})
+        pub["itinerary_count"] = count
+        result.append(pub)
+    return result
+
+@admin_router.get("/users/{user_id}")
+async def admin_get_user(user_id: str, admin: dict = Depends(require_admin)):
+    from bson import ObjectId
+    try:
+        oid = ObjectId(user_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+    user = await db.users.find_one({"_id": oid}, {"password_hash": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    pub = user_to_public(user)
+    # Attach user's itineraries
+    itin_cursor = db.itineraries.find({"user_id": user_id}).sort("created_at", -1)
+    itineraries = await itin_cursor.to_list(length=100)
+    pub["itineraries"] = []
+    for it in itineraries:
+        pub["itineraries"].append({
+            "id": str(it["_id"]) if "_id" in it else it.get("id"),
+            "title": it.get("title", "Untitled"),
+            "destination": it.get("destination", ""),
+            "type": it.get("type", ""),
+            "cover_emoji": it.get("cover_emoji", ""),
+            "events": it.get("events", []),
+        })
+    pub["itinerary_count"] = len(pub["itineraries"])
+    return pub
 
 @admin_router.put("/users/{user_id}")
 async def admin_update_user(user_id: str, data: AdminUserUpdate, admin: dict = Depends(require_admin)):
